@@ -18,7 +18,6 @@ jobs:
         with:
           version: latest
 
-      - run: supabase functions deploy card-proxy --project-ref $PROJECT_ID --no-verify-jwt
+      - run: supabase functions deploy card-proxy --project-ref ${{ secrets.SUPABASE_PROJECT_ID }} --no-verify-jwt
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
