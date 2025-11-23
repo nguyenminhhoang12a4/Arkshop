@@ -1,195 +1,148 @@
+// supabase/functions/card-proxy/index.ts
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.0.0"
-import { crypto } from "https://deno.land/std@0.177.0/crypto/mod.ts";
-import { encode } from "https://deno.land/std@0.177.0/encoding/hex.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
+import { crypto } from "https://deno.land/std@0.110.0/crypto/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Lấy cấu hình từ Supabase Secrets
-const PARTNER_ID = Deno.env.get('DOITHE1S_PARTNER_ID')
-const PARTNER_KEY = Deno.env.get('DOITHE1S_PARTNER_KEY')
-const DOITHE_URL = 'https://doithe1s.vn/chargingws/v2'
-
-// Hàm tạo chữ ký MD5 (Giống hệt logic PHP: md5(partner_key + code + serial))
-async function createMD5(text: string) {
-  const message = new TextEncoder().encode(text);
-  const hashBuffer = await crypto.subtle.digest("MD5", message);
-  return new TextDecoder().decode(encode(new Uint8Array(hashBuffer)));
-}
-
 serve(async (req) => {
-  // Xử lý CORS cho trình duyệt
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    // Kết nối Supabase với quyền Admin (Service Role) để được phép cộng tiền
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
+    // 1. Lấy biến môi trường (Cấu hình trên Dashboard Supabase)
+    const PARTNER_ID = Deno.env.get('DOITHE_PARTNER_ID')!
+    const PARTNER_KEY = Deno.env.get('DOITHE_PARTNER_KEY')!
+    const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
+    const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
-    const { action, ...payload } = await req.json()
+    // Client Admin để cập nhật DB (bypass RLS)
+    const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
-    // ==================================================================
-    // CASE 1: CLIENT GỬI THẺ (Từ Card.jsx -> Doithe1s)
-    // ==================================================================
-    if (action === 'submit_card') {
-      const { telco, amount, serial, code } = payload
-      
-      // 1. Xác thực người dùng gửi yêu cầu
-      const authHeader = req.headers.get('Authorization')!
-      const { data: { user }, error: authError } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''))
-      if (authError || !user) throw new Error('Bạn cần đăng nhập để nạp thẻ')
+    const url = new URL(req.url)
+    
+    // =========================================================
+    // TRƯỜNG HỢP 1: CALLBACK TỪ DOITHE1S.VN (Họ gọi mình)
+    // =========================================================
+    // Doithe1s có thể gửi GET hoặc POST JSON, ta xử lý cả 2
+    if (url.searchParams.get('callback_sign') || req.method === 'POST') {
+        let data: any = {};
+        
+        // Check xem data đến từ đâu (Query params hay Body)
+        // Code mẫu PHP dùng json body, ta ưu tiên check body trước
+        try {
+            const bodyText = await req.text();
+            if(bodyText) data = JSON.parse(bodyText);
+        } catch (e) {
+            // Nếu không phải JSON, lấy từ query params (dự phòng)
+            url.searchParams.forEach((value, key) => { data[key] = value });
+        }
 
-      // 2. Tạo mã đơn hàng (Request ID) duy nhất
-      const requestId = crypto.randomUUID().split('-')[0] + Date.now().toString().slice(-4);
+        // Nếu đây là request từ doithe1s (có callback_sign)
+        if (data.callback_sign) {
+             console.log("Nhận callback:", data);
 
-      // 3. Tạo chữ ký gửi sang đối tác
-      const sign = await createMD5(PARTNER_KEY + code + serial)
+            // Kiểm tra chữ ký bảo mật (MD5)
+            // PHP: md5($partner_key . $code . $serial)
+            const rawSign = PARTNER_KEY + data.code + data.serial;
+            const hashBuffer = await crypto.subtle.digest("MD5", new TextEncoder().encode(rawSign));
+            const validSign = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
 
-      // 4. Chuẩn bị dữ liệu gửi đi (Format x-www-form-urlencoded giống PHP)
-      const params = new URLSearchParams();
-      params.append('request_id', requestId);
-      params.append('code', code);
-      params.append('partner_id', PARTNER_ID!);
-      params.append('serial', serial);
-      params.append('telco', telco);
-      params.append('amount', amount);
-      params.append('command', 'charging');
-      params.append('sign', sign);
+            if (data.callback_sign !== validSign) {
+                return new Response(JSON.stringify({ status: 403, message: 'Invalid Sign' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+            }
 
-      // 5. Gọi API doithe1s
-      console.log(`Sending card: ${requestId} - ${telco} - ${amount}`);
-      const response = await fetch(DOITHE_URL, { 
-        method: 'POST', 
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: params 
-      });
-      
-      const result = await response.json();
-      console.log('Result from partner:', result);
+            // Xử lý kết quả
+            // status = 1 (Thành công), 2 (Sai mệnh giá - vẫn tính tiền theo thực tế), 3 (Lỗi), 99 (Chờ)
+            if (data.status == 1 || data.status == 2) {
+                // Gọi hàm SQL để cộng tiền an toàn
+                const { error: rpcError } = await supabaseAdmin.rpc('process_card_success', {
+                    p_request_id: data.request_id,
+                    p_value: data.value, // Mệnh giá thực tế nhận được
+                    p_telco: data.telco,
+                    p_trans_id: data.trans_id
+                });
+                if (rpcError) console.error("Lỗi cộng tiền:", rpcError);
+            } else if (data.status == 3) {
+                 // Cập nhật trạng thái thất bại
+                 await supabaseAdmin.from('card_transactions')
+                    .update({ status: 'failed', message: data.message })
+                    .eq('request_id', data.request_id);
+            }
 
-      // 6. Lưu vào Database (Trạng thái ban đầu là pending hoặc failed)
-      const declaredAmount = parseInt(amount);
-      
-      // Tính tiền khách nhận (Garena 15%, Khác 20%)
-      const discountRate = telco === 'GARENA' ? 0.15 : 0.20;
-      const receivedAmount = declaredAmount * (1 - discountRate);
+            return new Response(JSON.stringify({ status: 200, message: 'Updated' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+        }
+    }
 
-      // Status 99 là chờ xử lý, các số khác là lỗi ngay lập tức
-      const initialStatus = result.status == 99 ? 'pending' : 'failed'; 
+    // =========================================================
+    // TRƯỜNG HỢP 2: CLIENT (REACT) GỬI YÊU CẦU NẠP THẺ
+    // =========================================================
+    const reqBody = await req.json()
+    const { telco, amount, serial, code, user_id } = reqBody
 
-      await supabase.from('card_transactions').insert({
-        user_id: user.id,
-        request_id: requestId,
-        trans_id: result.trans_id || 0, // Lưu trans_id của họ để đối soát
+    if (!telco || !amount || !serial || !code || !user_id) {
+        throw new Error("Thiếu thông tin thẻ")
+    }
+
+    // Tạo Request ID ngẫu nhiên
+    const request_id = Math.floor(Math.random() * 1000000000).toString();
+
+    // 1. Lưu vào DB trạng thái Pending trước (để có bằng chứng đối soát)
+    const { error: dbError } = await supabaseAdmin.from('card_transactions').insert({
+        user_id: user_id,
         telco, code, serial,
-        declared_amount: declaredAmount,
-        received_amount: receivedAmount,
-        status: initialStatus,
-        message: result.message || 'Đang xử lý...'
-      });
+        declared_amount: amount,
+        received_amount: 0, // Chưa nhận đc
+        request_id: request_id,
+        status: 'pending'
+    })
 
-      // Trả kết quả về cho Card.jsx hiển thị
-      return new Response(JSON.stringify({ 
-        success: result.status == 99,
-        request_id: requestId,
-        message: result.message 
-      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    if (dbError) throw dbError;
+
+    // 2. Tạo chữ ký gửi đi (MD5)
+    // PHP: md5($partner_key.$code.$serial)
+    const signString = PARTNER_KEY + code + serial;
+    const hashBuffer = await crypto.subtle.digest("MD5", new TextEncoder().encode(signString));
+    const sign = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+
+    // 3. Gửi sang doithe1s.vn
+    const formData = new FormData();
+    formData.append('telco', telco);
+    formData.append('code', code);
+    formData.append('serial', serial);
+    formData.append('amount', amount);
+    formData.append('request_id', request_id);
+    formData.append('partner_id', PARTNER_ID);
+    formData.append('sign', sign);
+    formData.append('command', 'charging');
+
+    const response = await fetch('https://doithe1s.vn/chargingws/v2', {
+        method: 'POST',
+        body: formData
+    });
+
+    const result = await response.json();
+
+    // Cập nhật thông báo lỗi ngay nếu API trả về lỗi tức thì
+    if (result.status > 3 && result.status != 99) {
+         await supabaseAdmin.from('card_transactions')
+            .update({ status: 'failed', message: result.message })
+            .eq('request_id', request_id);
     }
 
-    // ==================================================================
-    // CASE 2: CALLBACK TỪ DOITHE1S (Doithe1s -> Web của mình)
-    // ==================================================================
-    // Logic này chạy khi đối tác gọi lại URL của bạn để báo kết quả
-    else if (payload.callback_sign) {
-      console.log('Received Callback:', payload);
-
-      // 1. Kiểm tra chữ ký bảo mật (Tránh giả mạo kết quả)
-      // Formula PHP: md5($partner_key . $jsonBody->code . $jsonBody->serial)
-      const mySign = await createMD5(PARTNER_KEY + payload.code + payload.serial);
-      
-      if (payload.callback_sign !== mySign) {
-        console.error('Wrong signature!');
-        return new Response(JSON.stringify({ status: false, message: 'Sai chữ ký' }), { status: 400 });
-      }
-
-      // 2. Tìm đơn hàng trong Database bằng request_id
-      const { data: trans } = await supabase
-        .from('card_transactions')
-        .select('*')
-        .eq('request_id', payload.request_id)
-        .single();
-
-      if (!trans) return new Response(JSON.stringify({ status: false, message: 'Không tìm thấy đơn' }));
-      
-      // Nếu đơn đã xử lý rồi thì bỏ qua
-      if (trans.status === 'success' || trans.status === 'wrong_amount') {
-        return new Response(JSON.stringify({ status: true, message: 'Đã xử lý trước đó' }));
-      }
-
-      // 3. Xử lý kết quả (Status 1: Thành công, 2: Sai mệnh giá, 3: Lỗi)
-      let newStatus = 'failed';
-      let finalAmount = 0;
-
-      if (payload.status == 1) {
-        // --- THẺ ĐÚNG ---
-        newStatus = 'success';
-        
-        // Tính toán lại số tiền thực nhận dựa trên MỆNH GIÁ THỰC (payload.value)
-        // Đề phòng khách chọn sai mệnh giá nhưng thẻ vẫn đúng
-        const realValue = parseInt(payload.value);
-        const discountRate = trans.telco === 'GARENA' ? 0.15 : 0.20;
-        finalAmount = realValue * (1 - discountRate);
-
-        // Cộng tiền cho user (Gọi hàm RPC an toàn)
-        const { error: rpcError } = await supabase.rpc('increment_balance', { 
-          user_id_param: trans.user_id, 
-          amount_param: finalAmount 
-        });
-        
-        if (rpcError) console.error('Lỗi cộng tiền:', rpcError);
-
-      } else if (payload.status == 2) {
-        // --- SAI MỆNH GIÁ ---
-        // Logic: Thẻ đúng nhưng sai mệnh giá -> Vẫn cộng tiền nhưng phạt 50% số thực nhận?
-        // Ở đây mình để tạm là 'wrong_amount' và CỘNG TIỀN THEO MỆNH GIÁ THỰC (Phạt hay không tùy bạn sửa logic)
-        newStatus = 'wrong_amount';
-        
-        const realValue = parseInt(payload.value);
-        const discountRate = trans.telco === 'GARENA' ? 0.15 : 0.20;
-        // Ví dụ: Phạt thêm 50% vì sai mệnh giá
-        finalAmount = (realValue * (1 - discountRate)) * 0.5; 
-
-        await supabase.rpc('increment_balance', { 
-          user_id_param: trans.user_id, 
-          amount_param: finalAmount 
-        });
-      } 
-      // Status 3, 4... là lỗi, giữ nguyên 'failed', không cộng tiền.
-
-      // 4. Cập nhật trạng thái đơn vào Database
-      await supabase.from('card_transactions')
-        .update({ 
-          status: newStatus, 
-          message: payload.message,
-          received_amount: finalAmount, // Cập nhật lại số tiền thực nhận cuối cùng
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', trans.id);
-
-      return new Response(JSON.stringify({ status: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
-
-    throw new Error('Hành động không hợp lệ')
+    return new Response(JSON.stringify(result), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
 
   } catch (error) {
-    console.error('Error:', error);
-    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: corsHeaders })
+    return new Response(JSON.stringify({ error: error.message }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 400,
+    })
   }
 })

@@ -1,7 +1,11 @@
-// 📂 src/services/supabaseClient.js
-import { createClient } from '@supabase/supabase-js'
+// src/services/supabaseClient.js
+import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error('Thiếu Supabase URL hoặc Anon Key trong file .env');
+}
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
