@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
-// 1. THÊM IMPORT ICON CLIPBOARD (DÁN)
 import { BanknotesIcon, ClockIcon, CreditCardIcon, CalculatorIcon, ClipboardDocumentIcon } from '@heroicons/react/24/solid';
 
 export default function CardPage() {
@@ -49,13 +48,11 @@ export default function CardPage() {
     }
   };
 
-  // --- 2. HÀM XỬ LÝ DÁN (PASTE) TỪ CLIPBOARD ---
+  // --- HÀM XỬ LÝ DÁN (PASTE) TỪ CLIPBOARD ---
   const handlePaste = async (field) => {
     try {
-        // Lấy text từ clipboard
         const text = await navigator.clipboard.readText();
         if (text) {
-            // Cập nhật vào form
             setCardForm(prev => ({ ...prev, [field]: text }));
         }
     } catch (err) {
@@ -94,7 +91,6 @@ export default function CardPage() {
     setLoading(true);
     
     const withdrawAmount = parseInt(withdrawForm.amount);
-    // ... (Giữ nguyên logic validate cũ)
     if (withdrawAmount < 10000) { alert("Min 10k"); setLoading(false); return; }
     if (withdrawAmount > balance) { alert("Số dư không đủ!"); setLoading(false); return; }
 
@@ -131,7 +127,6 @@ export default function CardPage() {
         
         {/* --- Card Số dư --- */}
         <div className="bg-gradient-to-br from-blue-700 to-blue-900 rounded-2xl p-6 text-white shadow-xl mb-8 border border-blue-500/50 relative overflow-hidden">
-            {/* ... (Giữ nguyên phần hiển thị số dư) ... */}
             <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full -mr-16 -mt-16 blur-2xl"></div>
             <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
@@ -215,7 +210,6 @@ export default function CardPage() {
                             </div>
                         </div>
 
-                        {/* --- 3. SỬA GIAO DIỆN INPUT MÃ THẺ (CÓ ICON DÁN) --- */}
                         <div>
                             <label className="block text-sm font-bold text-slate-700 mb-1">MÃ THẺ</label>
                             <div className="relative">
@@ -223,22 +217,16 @@ export default function CardPage() {
                                     type="text" 
                                     placeholder="Nhập mã thẻ..." 
                                     required 
-                                    className="w-full p-3 pr-10 border border-slate-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none font-mono tracking-wider text-lg placeholder:text-slate-400 placeholder:font-sans placeholder:tracking-normal placeholder:text-base" 
+                                    className="w-full p-3 pr-10 border border-slate-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none font-mono tracking-wider text-lg placeholder:text-slate-400" 
                                     value={cardForm.code} 
                                     onChange={e => setCardForm({...cardForm, code: e.target.value})} 
                                 />
-                                <button 
-                                    type="button"
-                                    onClick={() => handlePaste('code')}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-600 transition-colors p-1"
-                                    title="Dán mã thẻ"
-                                >
+                                <button type="button" onClick={() => handlePaste('code')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-600 transition-colors p-1" title="Dán mã thẻ">
                                     <ClipboardDocumentIcon className="w-6 h-6" />
                                 </button>
                             </div>
                         </div>
                         
-                        {/* --- 3. SỬA GIAO DIỆN INPUT SERIAL (CÓ ICON DÁN) --- */}
                         <div>
                             <label className="block text-sm font-bold text-slate-700 mb-1">SERIAL</label>
                             <div className="relative">
@@ -246,16 +234,11 @@ export default function CardPage() {
                                     type="text" 
                                     placeholder="Nhập số serial..." 
                                     required 
-                                    className="w-full p-3 pr-10 border border-slate-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none font-mono tracking-wider text-lg placeholder:text-slate-400 placeholder:font-sans placeholder:tracking-normal placeholder:text-base" 
+                                    className="w-full p-3 pr-10 border border-slate-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none font-mono tracking-wider text-lg placeholder:text-slate-400" 
                                     value={cardForm.serial} 
                                     onChange={e => setCardForm({...cardForm, serial: e.target.value})} 
                                 />
-                                <button 
-                                    type="button"
-                                    onClick={() => handlePaste('serial')}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-600 transition-colors p-1"
-                                    title="Dán serial"
-                                >
+                                <button type="button" onClick={() => handlePaste('serial')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-600 transition-colors p-1" title="Dán serial">
                                     <ClipboardDocumentIcon className="w-6 h-6" />
                                 </button>
                             </div>
@@ -267,53 +250,100 @@ export default function CardPage() {
                     </form>
                 )}
 
-                {/* --- TAB RÚT TIỀN (Giữ nguyên) --- */}
+                {/* --- TAB RÚT TIỀN (ĐÃ CẬP NHẬT GIAO DIỆN) --- */}
                 {activeTab === 'withdraw' && (
                     <form onSubmit={handleWithdrawSubmit} className="space-y-6 max-w-lg mx-auto animate-fade-in">
-                        {/* ... (Giữ nguyên code cũ) ... */}
                         <div className="bg-red-50 border-l-4 border-red-600 p-4 rounded-r-lg">
                              <h4 className="font-bold text-red-800 uppercase text-sm mb-1">Thông tin rút tiền</h4>
                              <p className="text-red-700 text-sm">Phí cố định: <strong>2.000đ/lần</strong>. Duyệt lúc 11h & 17h.</p>
                         </div>
+
                         <div className="space-y-4">
                              <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Ngân hàng thụ hưởng</label>
-                                <input type="text" placeholder="VD: MBBank, Vietcombank..." required className="w-full p-3 border border-slate-300 rounded-lg focus:border-red-500 outline-none font-bold text-slate-900" value={withdrawForm.bank_name} onChange={e => setWithdrawForm({...withdrawForm, bank_name: e.target.value})} />
+                                <label className="block text-sm font-bold text-slate-700 mb-1 uppercase">Ngân hàng thụ hưởng</label>
+                                <input 
+                                    type="text" 
+                                    placeholder="VD: MBBank, Vietcombank..." 
+                                    required 
+                                    className="w-full p-3 border border-slate-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none text-slate-900 placeholder:text-slate-400" 
+                                    value={withdrawForm.bank_name} 
+                                    onChange={e => setWithdrawForm({...withdrawForm, bank_name: e.target.value})} 
+                                />
                              </div>
+
                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Số tài khoản</label>
-                                    <input type="text" placeholder="Số TK..." required className="w-full p-3 border border-slate-300 rounded-lg focus:border-red-500 outline-none font-mono font-bold text-slate-900" value={withdrawForm.account_number} onChange={e => setWithdrawForm({...withdrawForm, account_number: e.target.value})} />
+                                    <label className="block text-sm font-bold text-slate-700 mb-1 uppercase">Số tài khoản</label>
+                                    <input 
+                                        type="text" 
+                                        placeholder="Số TK..." 
+                                        required 
+                                        className="w-full p-3 border border-slate-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none font-mono text-slate-900 placeholder:text-slate-400" 
+                                        value={withdrawForm.account_number} 
+                                        onChange={e => setWithdrawForm({...withdrawForm, account_number: e.target.value})} 
+                                    />
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Chủ tài khoản</label>
-                                    <input type="text" placeholder="Tên in hoa..." required className="w-full p-3 border border-slate-300 rounded-lg focus:border-red-500 outline-none font-bold text-slate-900 uppercase" value={withdrawForm.account_name} onChange={e => setWithdrawForm({...withdrawForm, account_name: e.target.value.toUpperCase()})} />
+                                    <label className="block text-sm font-bold text-slate-700 mb-1 uppercase">Chủ tài khoản</label>
+                                    <input 
+                                        type="text" 
+                                        placeholder="TÊN IN HOA..." 
+                                        required 
+                                        className="w-full p-3 border border-slate-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none text-slate-900 uppercase placeholder:normal-case placeholder:text-slate-400" 
+                                        value={withdrawForm.account_name} 
+                                        onChange={e => setWithdrawForm({...withdrawForm, account_name: e.target.value.toUpperCase()})} 
+                                    />
                                 </div>
                             </div>
-                             <div className="pt-2">
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Số tiền muốn rút (Từ ví)</label>
+
+                             <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-1 uppercase">Số tiền muốn rút (Từ ví)</label>
                                 <div className="relative">
-                                    <input type="number" placeholder="Nhập số tiền..." required className="w-full p-4 border border-slate-300 rounded-lg focus:border-red-500 outline-none text-xl font-bold text-red-600 pr-16" value={withdrawForm.amount} onChange={e => setWithdrawForm({...withdrawForm, amount: e.target.value})} />
-                                    <span className="absolute right-4 top-4 font-bold text-slate-400">VNĐ</span>
+                                    <input 
+                                        type="number" 
+                                        placeholder="1" 
+                                        required 
+                                        className="w-full p-3 pr-16 border border-slate-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none text-xl font-bold text-red-600 placeholder:text-slate-300" 
+                                        value={withdrawForm.amount} 
+                                        onChange={e => setWithdrawForm({...withdrawForm, amount: e.target.value})} 
+                                    />
+                                    <span className="absolute right-4 top-1/2 -translate-y-1/2 font-bold text-slate-500 text-sm">VNĐ</span>
                                 </div>
-                                {/* ... (Phần tính toán giữ nguyên) ... */}
+
+                                {/* Box tính toán */}
                                 {inputAmount > 0 && (
                                      <div className="mt-3 bg-slate-100 p-4 rounded-lg border border-slate-200 animate-fade-in">
-                                        <div className="flex justify-between items-center text-sm text-slate-500 mb-1"><span>Số tiền rút:</span><span className="font-medium">{formatCurrency(inputAmount)}</span></div>
-                                        <div className="flex justify-between items-center text-sm text-slate-500 mb-2 border-b border-slate-200 pb-2"><span>Phí giao dịch:</span><span className="font-medium text-red-500">-{formatCurrency(withdrawFee)}</span></div>
-                                        <div className="flex justify-between items-center"><span className="font-bold text-slate-800 uppercase flex items-center gap-1"><CalculatorIcon className="w-4 h-4" />Thực nhận:</span><span className="font-extrabold text-xl text-green-600">{formatCurrency(realReceived)}</span></div>
+                                        <div className="flex justify-between items-center text-sm text-slate-500 mb-1">
+                                            <span>Số tiền rút:</span>
+                                            <span className="font-medium">{formatCurrency(inputAmount)}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center text-sm text-slate-500 mb-2 border-b border-slate-200 pb-2">
+                                            <span>Phí giao dịch:</span>
+                                            <span className="font-medium text-red-500">-{formatCurrency(withdrawFee)}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center">
+                                            <span className="font-bold text-slate-800 uppercase flex items-center gap-1">
+                                                <CalculatorIcon className="w-4 h-4" />
+                                                Thực nhận:
+                                            </span>
+                                            <span className="font-extrabold text-xl text-green-600">
+                                                {formatCurrency(realReceived)}
+                                            </span>
+                                        </div>
                                     </div>
                                 )}
                             </div>
                         </div>
-                        <button disabled={loading} className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-lg shadow-lg text-lg transition-transform active:scale-95 mt-4">{loading ? 'ĐANG TẠO LỆNH...' : 'XÁC NHẬN RÚT TIỀN'}</button>
+
+                        <button disabled={loading} className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-lg shadow-lg text-lg transition-transform active:scale-95 mt-4">
+                            {loading ? 'ĐANG TẠO LỆNH...' : 'XÁC NHẬN RÚT TIỀN'}
+                        </button>
                     </form>
                 )}
 
                 {/* --- TAB LỊCH SỬ (Giữ nguyên) --- */}
                 {activeTab === 'history' && (
                     <div className="space-y-8 animate-fade-in">
-                        {/* ... (Giữ nguyên bảng lịch sử cũ) ... */}
                          {/* Bảng Nạp Thẻ */}
                         <div>
                             <h3 className="font-bold text-lg text-blue-800 border-l-4 border-blue-600 pl-3 mb-4">Lịch Sử Nạp Thẻ</h3>

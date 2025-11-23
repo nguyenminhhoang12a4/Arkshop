@@ -9,6 +9,7 @@ import ticket from '../assets/icon-ticket.png'
 import money from '../assets/icon-money.png'
 import home from '../assets/icon-home.png'
 import shop from '../assets/icon-shop.png'
+import login from '../assets/icon-login.png'
 // ... (Code của NavButton đã cập nhật) ...
 const NavButton = ({ to, label, iconName, iconSrc }) => {
   const activeClassName = "bg-blue-100 text-blue-700";
@@ -84,7 +85,13 @@ export const Navbar = () => {
           label="Chợ Trời" 
           iconSrc={choTroiIcon} // <-- Truyền biến ảnh đã import vào đây
         />
-        
+        {/* 2. SỬ DỤNG 'iconSrc' THAY VÌ 'iconName' */}
+        <NavButton 
+          to="/login" 
+          label="Đăng nhập" 
+          iconSrc={login} 
+          // <-- Truyền biến ảnh đã import vào đây
+        />
       </div>
     </nav>
   );
