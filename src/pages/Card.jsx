@@ -104,7 +104,7 @@ export default function CardPage() {
 
         if (error) throw error;
         
-        alert("Tạo lệnh rút thành công! Admin sẽ duyệt vào lúc 11h hoặc 17h.");
+        alert("Tạo lệnh rút thành công! Admin sẽ duyệt vào lúc 13h hoặc 19h duyệt trong ngày.");
         setWithdrawForm({ bank_name: '', account_number: '', account_name: '', amount: '' });
         fetchUserAndBalance(); 
     } catch (err) {
@@ -176,13 +176,14 @@ export default function CardPage() {
                 {/* --- TAB NẠP THẺ --- */}
                 {activeTab === 'deposit' && (
                     <form onSubmit={handleCardSubmit} className="space-y-6 max-w-lg mx-auto animate-fade-in">
-                        <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4 text-yellow-800 text-sm rounded-r-lg">
-                            <p className="font-bold">Chiết khấu:</p>
-                            <div className="flex flex-col sm:flex-row sm:gap-4">
-                                <span>- Garena: <span className="font-bold text-green-600">15%</span></span>
-                                <span>- Viettel/Vina/Mobi: <span className="font-bold text-green-600">20%</span></span>
-                            </div>
-                        </div>
+                        <div class="bg-yellow-50 border-l-4 border-yellow-500 p-4 text-yellow-800 text-sm rounded-r-lg">
+    <p class="font-bold">Chiết khấu:</p>
+    <div>
+        <div>- Garena: <span class="font-bold text-green-600">15%</span></div>
+        <div>- Viettel/Vina/Mobi: <span class="font-bold text-green-600">20%</span></div>
+        <div class="font-bold text-red-700">Lưu Ý: <span class="font-bold">Nạp đúng loại thẻ và mệnh giá thẻ</span></div>
+    </div>
+</div>
 
                         <div className="grid grid-cols-2 gap-4">
                             <div>
