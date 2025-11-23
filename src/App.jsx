@@ -1,23 +1,20 @@
 import React, { useState } from 'react';
 import { Routes, Route, Outlet } from 'react-router-dom';
 
-// --- 1. Context (Đã thêm lại theo yêu cầu) ---
-// Hãy chắc chắn bạn đã có file này: src/contexts/AuthContext.jsx
+// --- 1. Context ---
 import { AuthProvider } from './contexts/AuthContext';
 
-// --- 2. Component và Data cũ ---
+// --- 2. Component và Data ---
 import { Navbar } from './components/Navbar';
 import { ImageZoomModal } from './components/ImageZoomModal';
 import { initialProductData } from './data/productData';
 
 // --- 3. Các trang (Pages) ---
-// Các trang cũ của ARK Mobile
 import { HomePage } from './pages/HomePage';
 import { ShopPage } from './pages/ShopPage';
 import { EventPage } from './pages/EventPage';
 
-// Các trang MỚI của Chợ Trời (Đổi tên import Home để tránh trùng)
-import FleaMarketHome from './pages/FleaMarketHome'; // Trang Home của chợ trời
+import FleaMarketHome from './pages/FleaMarketHome'; 
 import Login from './pages/Login';
 import Register from './pages/Register';
 import CreateListing from './pages/CreateListing';
@@ -29,15 +26,14 @@ const AppLayout = () => (
     <div className="container mx-auto max-w-7xl">
       <Navbar />
       <main>
-        <Outlet /> {/* Đây là nơi các trang con render */}
+        <Outlet />
       </main>
     </div>
   </div>
 );
 
-// Component App chính
 export default function App() {
-  // State zoom ảnh (dành cho ShopPage)
+  // State zoom ảnh
   const [zoomState, setZoomState] = useState({
     isOpen: false,
     products: [],
@@ -67,10 +63,8 @@ export default function App() {
   };
 
   return (
-    // Bọc toàn bộ ứng dụng trong AuthProvider để dùng chức năng đăng nhập
     <AuthProvider>
       <>
-        {/* Giữ nguyên style cho animation */}
         <style>{`
           @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
@@ -85,15 +79,12 @@ export default function App() {
           .animate-fade-in-fast { animation: fadeInFast 0.2s ease-out; }
         `}</style>
         
-        {/* Định nghĩa các Route */}
         <Routes>
           
           {/* --- NHÓM 1: CÁC TRANG CÓ NAVBAR (AppLayout) --- */}
           <Route path="/" element={<AppLayout />}>
-            {/* Trang chủ mặc định (ARK Mobile) */}
             <Route index element={<HomePage />} />
             
-            {/* Trang Shop */}
             <Route 
               path="shop" 
               element={
@@ -105,27 +96,24 @@ export default function App() {
               } 
             />
             
-            {/* Trang Sự kiện */}
             <Route path="/event" element={<EventPage />} />
-
-            {/* Trang Chợ Trời (Home mới) -> Đã map sang đường dẫn /cho-troi */}
             <Route path="/cho-troi" element={<FleaMarketHome />} />
-
-            {/* Trang Tạo bài đăng (Để trong Layout để có Navbar) */}
             <Route path="/create" element={<CreateListing />} />
+            
+            {/* ✅ ĐÃ CHUYỂN CARD PAGE LÊN ĐÂY ĐỂ CÓ NAVBAR */}
+            <Route path="/card" element={<CardPage />} />
 
             {/* Route dự phòng */}
             <Route path="*" element={<HomePage />} /> 
           </Route>
           
-          {/* --- NHÓM 2: CÁC TRANG KHÔNG CÓ NAVBAR (Full màn hình) --- */}
+          {/* --- NHÓM 2: CÁC TRANG KHÔNG CÓ NAVBAR (Login/Register) --- */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
-          <Route path="/card" element={<CardPage />} />
+          {/* Đã xóa CardPage ở đây */}
 
         </Routes>
         
-        {/* Modal Zoom Ảnh (Luôn nằm trên cùng) */}
         {zoomState.isOpen && (
           <ImageZoomModal
             currentImage={zoomState.products[zoomState.currentIndex]?.imageUrl} 

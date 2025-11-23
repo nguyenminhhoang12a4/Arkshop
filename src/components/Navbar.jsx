@@ -5,7 +5,10 @@ import { Icon } from './Icon';
 // 1. IMPORT FILE ẢNH CỦA BẠN
 // (Hãy đảm bảo đường dẫn này đúng với vị trí file của bạn)
 import choTroiIcon from '../assets/cho-troi-icon.png'; // <-- Giả sử bạn đặt file ở 'src/assets/'
-
+import ticket from '../assets/icon-ticket.png'
+import money from '../assets/icon-money.png'
+import home from '../assets/icon-home.png'
+import shop from '../assets/icon-shop.png'
 // ... (Code của NavButton đã cập nhật) ...
 const NavButton = ({ to, label, iconName, iconSrc }) => {
   const activeClassName = "bg-blue-100 text-blue-700";
@@ -53,9 +56,27 @@ export const Navbar = () => {
       {/* SỬA 3: Cho phép xuống dòng (flex-wrap) và chỉnh font size/gap */}
       <div className="flex flex-wrap justify-center gap-2 text-base sm:text-lg sm:space-x-4 sm:gap-0">
         {/* Các NavButton khác giữ nguyên */}
-        <NavButton to="/" label="Trang Chủ" iconName="Home" />
-        <NavButton to="/shop" label="Shop" iconName="Store" />
-        <NavButton to="/event" label="Sổ Xố" iconName="Store" />
+        <NavButton 
+          to="/" 
+          label="Trang Chủ" 
+          iconSrc={home} // <-- Truyền biến ảnh đã import vào đây
+        />
+        <NavButton 
+          to="/shop" 
+          label="Cửa hàng" 
+          iconSrc={shop} // <-- Truyền biến ảnh đã import vào đây
+        />
+        <NavButton 
+          to="/event" 
+          label="Sổ Xố" 
+          iconSrc={ticket} // <-- Truyền biến ảnh đã import vào đây
+        />
+
+        <NavButton 
+          to="/card" 
+          label="Đổi tiền" 
+          iconSrc={money} // <-- Truyền biến ảnh đã import vào đây
+        />
         
         {/* 2. SỬ DỤNG 'iconSrc' THAY VÌ 'iconName' */}
         <NavButton 
