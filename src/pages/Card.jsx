@@ -2,6 +2,21 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
 import { BanknotesIcon, ClockIcon, CreditCardIcon, CalculatorIcon, ClipboardDocumentIcon } from '@heroicons/react/24/solid';
 
+// Danh sách ngân hàng & Ví điện tử
+const BANK_LIST = [
+    "Ngân hàng Vietcombank", "Ngân hàng BIDV", "Ngân hàng VIETINBANK", "Ngân hàng AGRIBANK",
+    "Ngân hàng SACOMBANK", "Ngân hàng TECHCOMBANK", "Ngân hàng MBBANK", "Ngân hàng VPBANK",
+    "Ngân hàng TPBANK", "Ngân hàng ACB", "Ngân hàng DONGABANK", "Ngân hàng EXIMBANK",
+    "Ngân hàng SEABANK", "Ngân hàng VIB", "Ngân hàng MSB (Maritime)", "Ngân hàng SHB",
+    "Ngân hàng OCB", "Ngân hàng HDBank", "Ngân hàng NAMABANK", "Ngân hàng SAIGONBANK",
+    "Ngân hàng VIETBANK", "Ngân hàng ABBANK", "Ngân hàng KIENLONGBANK", "Ngân hàng BVBANK (Bản Việt)",
+    "Ngân hàng PVCOMBANK", "Ngân hàng OCEANBANK", "Ngân hàng NCB", "Ngân hàng SHINHAN",
+    "Ngân hàng SCB", "Ngân hàng VAB (VietA)", "Ngân hàng GPBANK", "Ngân hàng PGBANK",
+    "Ngân hàng PUBLIC BANK", "Ngân hàng UOB", "Ngân hàng WOORI", "Ngân hàng CIMB",
+    "Ngân hàng số CAKE", "Ngân hàng số TIMO", "Ngân hàng số TNEX", "Ngân hàng số LIOBANK",
+    "Ví MOMO", "Ví ZALOPAY", "Ví VIETTEL MONEY", "Ví VNPT MONEY"
+];
+
 export default function CardPage() {
   const [activeTab, setActiveTab] = useState('deposit'); 
   const [balance, setBalance] = useState(0);
@@ -48,7 +63,7 @@ export default function CardPage() {
     }
   };
 
-  // --- HÀM XỬ LÝ DÁN (PASTE) TỪ CLIPBOARD ---
+  // --- HÀM XỬ LÝ DÁN (PASTE) ---
   const handlePaste = async (field) => {
     try {
         const text = await navigator.clipboard.readText();
@@ -56,7 +71,7 @@ export default function CardPage() {
             setCardForm(prev => ({ ...prev, [field]: text }));
         }
     } catch (err) {
-        alert('Không thể truy cập bộ nhớ đệm. Vui lòng nhập tay hoặc cho phép trình duyệt.');
+        alert('Không thể truy cập bộ nhớ đệm. Vui lòng nhập tay.');
     }
   };
 
@@ -91,8 +106,9 @@ export default function CardPage() {
     setLoading(true);
     
     const withdrawAmount = parseInt(withdrawForm.amount);
-    if (withdrawAmount < 10000) { alert("Min 10k"); setLoading(false); return; }
+    if (withdrawAmount < 10000) { alert("Số tiền rút tối thiểu là 10.000đ"); setLoading(false); return; }
     if (withdrawAmount > balance) { alert("Số dư không đủ!"); setLoading(false); return; }
+    if (!withdrawForm.bank_name) { alert("Vui lòng chọn ngân hàng!"); setLoading(false); return; }
 
     try {
         const { error } = await supabase.rpc('create_withdraw_request', {
@@ -104,7 +120,7 @@ export default function CardPage() {
 
         if (error) throw error;
         
-        alert("Tạo lệnh rút thành công! Admin sẽ duyệt vào lúc 13h hoặc 19h duyệt trong ngày.");
+        alert("Tạo lệnh rút thành công! Admin sẽ duyệt vào lúc 13h hoặc 19h trong ngày.");
         setWithdrawForm({ bank_name: '', account_number: '', account_name: '', amount: '' });
         fetchUserAndBalance(); 
     } catch (err) {
@@ -176,14 +192,14 @@ export default function CardPage() {
                 {/* --- TAB NẠP THẺ --- */}
                 {activeTab === 'deposit' && (
                     <form onSubmit={handleCardSubmit} className="space-y-6 max-w-lg mx-auto animate-fade-in">
-                        <div class="bg-yellow-50 border-l-4 border-yellow-500 p-4 text-yellow-800 text-sm rounded-r-lg">
-    <p class="font-bold">Chiết khấu:</p>
-    <div>
-        <div>- Garena: <span class="font-bold text-green-600">15%</span></div>
-        <div>- Viettel/Vina/Mobi: <span class="font-bold text-green-600">20%</span></div>
-        <div class="font-bold text-red-700">Lưu Ý: <span class="font-bold">Nạp đúng loại thẻ và mệnh giá thẻ</span></div>
-    </div>
-</div>
+                        <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4 text-yellow-800 text-sm rounded-r-lg">
+                            <p className="font-bold">Chiết khấu:</p>
+                            <div className="flex flex-col sm:flex-row sm:gap-4">
+                                <span>- Garena: <span className="font-bold text-green-600">15%</span></span>
+                                <span>- Viettel/Vina/Mobi: <span className="font-bold text-green-600">20%</span></span>
+                            </div>
+                            <div className="mt-1 text-red-600 italic text-xs font-bold">* Lưu ý: Chọn sai mệnh giá sẽ bị phạt theo quy định.</div>
+                        </div>
 
                         <div className="grid grid-cols-2 gap-4">
                             <div>
@@ -211,6 +227,7 @@ export default function CardPage() {
                             </div>
                         </div>
 
+                        {/* --- UI MỚI: MÃ THẺ (Paste Icon bên trong) --- */}
                         <div>
                             <label className="block text-sm font-bold text-slate-700 mb-1">MÃ THẺ</label>
                             <div className="relative">
@@ -218,16 +235,22 @@ export default function CardPage() {
                                     type="text" 
                                     placeholder="Nhập mã thẻ..." 
                                     required 
-                                    className="w-full p-3 pr-10 border border-slate-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none font-mono tracking-wider text-lg placeholder:text-slate-400" 
+                                    className="w-full p-3 pr-10 border border-slate-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none font-mono tracking-wider text-lg text-slate-800 placeholder:text-slate-400 placeholder:font-sans placeholder:text-base" 
                                     value={cardForm.code} 
                                     onChange={e => setCardForm({...cardForm, code: e.target.value})} 
                                 />
-                                <button type="button" onClick={() => handlePaste('code')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-600 transition-colors p-1" title="Dán mã thẻ">
-                                    <ClipboardDocumentIcon className="w-6 h-6" />
+                                <button 
+                                    type="button" 
+                                    onClick={() => handlePaste('code')} 
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-600 transition-colors p-1.5 hover:bg-slate-100 rounded-full" 
+                                    title="Dán mã thẻ"
+                                >
+                                    <ClipboardDocumentIcon className="w-5 h-5" />
                                 </button>
                             </div>
                         </div>
                         
+                        {/* --- UI MỚI: SERIAL (Paste Icon bên trong) --- */}
                         <div>
                             <label className="block text-sm font-bold text-slate-700 mb-1">SERIAL</label>
                             <div className="relative">
@@ -235,12 +258,17 @@ export default function CardPage() {
                                     type="text" 
                                     placeholder="Nhập số serial..." 
                                     required 
-                                    className="w-full p-3 pr-10 border border-slate-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none font-mono tracking-wider text-lg placeholder:text-slate-400" 
+                                    className="w-full p-3 pr-10 border border-slate-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none font-mono tracking-wider text-lg text-slate-800 placeholder:text-slate-400 placeholder:font-sans placeholder:text-base" 
                                     value={cardForm.serial} 
                                     onChange={e => setCardForm({...cardForm, serial: e.target.value})} 
                                 />
-                                <button type="button" onClick={() => handlePaste('serial')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-600 transition-colors p-1" title="Dán serial">
-                                    <ClipboardDocumentIcon className="w-6 h-6" />
+                                <button 
+                                    type="button" 
+                                    onClick={() => handlePaste('serial')} 
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-600 transition-colors p-1.5 hover:bg-slate-100 rounded-full" 
+                                    title="Dán serial"
+                                >
+                                    <ClipboardDocumentIcon className="w-5 h-5" />
                                 </button>
                             </div>
                         </div>
@@ -251,25 +279,37 @@ export default function CardPage() {
                     </form>
                 )}
 
-                {/* --- TAB RÚT TIỀN (ĐÃ CẬP NHẬT GIAO DIỆN) --- */}
+                {/* --- TAB RÚT TIỀN --- */}
                 {activeTab === 'withdraw' && (
                     <form onSubmit={handleWithdrawSubmit} className="space-y-6 max-w-lg mx-auto animate-fade-in">
                         <div className="bg-red-50 border-l-4 border-red-600 p-4 rounded-r-lg">
                              <h4 className="font-bold text-red-800 uppercase text-sm mb-1">Thông tin rút tiền</h4>
-                             <p className="text-red-700 text-sm">Phí cố định: <strong>2.000đ/lần</strong>. Duyệt lúc 11h & 17h.</p>
+                             <p className="text-red-700 text-sm">Phí cố định: <strong>2.000đ/lần</strong>. Duyệt lúc 13h & 19h.</p>
                         </div>
 
                         <div className="space-y-4">
+                             {/* --- TÍCH HỢP LIST NGÂN HÀNG --- */}
                              <div>
                                 <label className="block text-sm font-bold text-slate-700 mb-1 uppercase">Ngân hàng thụ hưởng</label>
-                                <input 
-                                    type="text" 
-                                    placeholder="VD: MBBank, Vietcombank..." 
-                                    required 
-                                    className="w-full p-3 border border-slate-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none text-slate-900 placeholder:text-slate-400" 
-                                    value={withdrawForm.bank_name} 
-                                    onChange={e => setWithdrawForm({...withdrawForm, bank_name: e.target.value})} 
-                                />
+                                <div className="relative">
+                                    <select 
+                                        required 
+                                        className="w-full p-3 border border-slate-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none text-slate-900 appearance-none bg-white" 
+                                        value={withdrawForm.bank_name} 
+                                        onChange={e => setWithdrawForm({...withdrawForm, bank_name: e.target.value})}
+                                    >
+                                        <option value="">-- Chọn Ngân hàng / Ví --</option>
+                                        {BANK_LIST.map((bank, index) => (
+                                            <option key={index} value={bank}>{bank}</option>
+                                        ))}
+                                    </select>
+                                    {/* Mũi tên custom cho select */}
+                                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                                        </svg>
+                                    </div>
+                                </div>
                              </div>
 
                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -302,9 +342,9 @@ export default function CardPage() {
                                 <div className="relative">
                                     <input 
                                         type="number" 
-                                        placeholder="1" 
+                                        placeholder="Nhập số tiền..." 
                                         required 
-                                        className="w-full p-3 pr-16 border border-slate-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none text-xl font-bold text-red-600 placeholder:text-slate-300" 
+                                        className="w-full p-3 pr-16 border border-slate-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none text-xl font-bold text-red-600 placeholder:text-slate-300 placeholder:text-base placeholder:font-normal" 
                                         value={withdrawForm.amount} 
                                         onChange={e => setWithdrawForm({...withdrawForm, amount: e.target.value})} 
                                     />
