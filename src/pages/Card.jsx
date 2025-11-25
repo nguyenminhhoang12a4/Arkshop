@@ -1,7 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabaseClient';
-import { BanknotesIcon, ClockIcon, CreditCardIcon, CalculatorIcon, ClipboardDocumentIcon } from '@heroicons/react/24/solid';
+import { 
+    BanknotesIcon, ClockIcon, CreditCardIcon, 
+    CalculatorIcon, ClipboardDocumentIcon, PlusCircleIcon, TrashIcon,
+    CheckCircleIcon, XCircleIcon, ArrowPathIcon
+} from '@heroicons/react/24/solid';
 
 // Danh sách ngân hàng & Ví điện tử
 const BANK_LIST = [
@@ -26,8 +30,13 @@ export default function CardPage() {
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState(null);
 
-  // Form States
-  const [cardForm, setCardForm] = useState({ telco: 'VIETTEL', amount: '10000', serial: '', code: '' });
+  // --- STATE MỚI: QUẢN LÝ DANH SÁCH THẺ ---
+  // Mỗi thẻ là một object có id riêng để quản lý trạng thái
+  const [cardsList, setCardsList] = useState([
+    { id: 1, telco: 'VIETTEL', amount: '10000', code: '', serial: '', status: 'idle', msg: '' }
+  ]);
+
+  // Form Rút tiền
   const [withdrawForm, setWithdrawForm] = useState({ bank_name: '', account_number: '', account_name: '', amount: '' });
 
   // State lịch sử
@@ -56,75 +65,136 @@ export default function CardPage() {
     try {
         const { data: cards } = await supabase.from('card_transactions').select('*').order('created_at', { ascending: false }).limit(20);
         const { data: withdraws } = await supabase.from('withdraw_requests').select('*').order('created_at', { ascending: false }).limit(20);
-        
-        setHistory({ 
-            cards: cards || [], 
-            withdraws: withdraws || [] 
-        });
+        setHistory({ cards: cards || [], withdraws: withdraws || [] });
     } catch (error) {
         console.error("Lỗi tải lịch sử:", error);
     }
   };
 
-  const handlePaste = async (field) => {
+  // --- CÁC HÀM QUẢN LÝ DANH SÁCH THẺ (Thêm/Sửa/Xóa) ---
+
+  const addCardRow = () => {
+    setCardsList([...cardsList, { 
+        id: Date.now(), // Tạo ID ngẫu nhiên
+        telco: 'VIETTEL', amount: '10000', code: '', serial: '', status: 'idle', msg: '' 
+    }]);
+  };
+
+  const removeCardRow = (index) => {
+    if (cardsList.length === 1) return; // Giữ lại ít nhất 1 dòng
+    const newList = [...cardsList];
+    newList.splice(index, 1);
+    setCardsList(newList);
+  };
+
+  const updateCardRow = (index, field, value) => {
+    const newList = [...cardsList];
+    newList[index][field] = value;
+    // Reset trạng thái nếu người dùng sửa lại
+    if (field === 'code' || field === 'serial') {
+        newList[index].status = 'idle';
+        newList[index].msg = '';
+    }
+    setCardsList(newList);
+  };
+
+  const handlePaste = async (index, field) => {
     try {
         const text = await navigator.clipboard.readText();
-        if (text) {
-            setCardForm(prev => ({ ...prev, [field]: text }));
-        }
+        if (text) updateCardRow(index, field, text);
     } catch (err) {
-        alert('Không thể truy cập bộ nhớ đệm. Vui lòng nhập tay.');
+        alert('Không thể truy cập bộ nhớ đệm.');
     }
   };
 
-  const handleCardSubmit = async (e) => {
+  // --- XỬ LÝ GỬI NHIỀU THẺ (Bulk Submit) ---
+  const handleBulkSubmit = async (e) => {
     e.preventDefault();
 
     if (!user) {
-        const confirmLogin = confirm("Bạn cần đăng nhập để nạp thẻ. Bạn có muốn đăng nhập ngay không?");
-        if (confirmLogin) {
-            navigate('/login'); 
-        }
+        const confirmLogin = confirm("Bạn cần đăng nhập để nạp thẻ. Đăng nhập ngay?");
+        if (confirmLogin) navigate('/login');
         return; 
     }
 
-    setLoading(true);
-
-    try {
-      const { data, error } = await supabase.functions.invoke('card-proxy', {
-        body: { ...cardForm, user_id: user.id }
-      });
-
-      if (error) throw error;
-
-      if (data.status == 99) {
-        alert("Đã gửi thẻ! Vui lòng đợi hệ thống xử lý trong giây lát.");
-        setCardForm({ ...cardForm, serial: '', code: '' }); 
-      } else {
-        alert(`Phản hồi: ${data.message}`);
-      }
-    } catch (err) {
-      alert("Lỗi kết nối: " + err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleWithdrawSubmit = async (e) => {
-    e.preventDefault();
-
-    if (!user) {
-        alert("Bạn cần đăng nhập để thực hiện rút tiền.");
-        navigate('/login');
+    // Kiểm tra xem có thẻ nào chưa nhập đủ không
+    const isValid = cardsList.every(card => card.code && card.serial);
+    if (!isValid) {
+        alert("Vui lòng nhập đầy đủ Mã thẻ và Serial cho tất cả các dòng.");
         return;
     }
 
     setLoading(true);
+
+    // Duyệt qua từng thẻ và gửi đi
+    // Dùng vòng lặp for...of để xử lý tuần tự (hoặc Promise.all nếu muốn song song)
+    let successCount = 0;
+    
+    // Tạo bản sao để update state
+    let currentList = [...cardsList];
+
+    for (let i = 0; i < currentList.length; i++) {
+        const card = currentList[i];
+
+        // Chỉ xử lý những thẻ chưa thành công (idle hoặc error)
+        if (card.status === 'success') continue;
+
+        // Cập nhật trạng thái đang chạy
+        currentList[i].status = 'processing';
+        setCardsList([...currentList]); // Update UI ngay lập tức
+
+        try {
+            const { data, error } = await supabase.functions.invoke('card-proxy', {
+                body: { 
+                    telco: card.telco, 
+                    amount: card.amount, 
+                    code: card.code, 
+                    serial: card.serial, 
+                    user_id: user.id 
+                }
+            });
+
+            if (error) throw error;
+
+            if (data.status == 99) {
+                currentList[i].status = 'success';
+                currentList[i].msg = 'Đã gửi thành công';
+                successCount++;
+            } else {
+                currentList[i].status = 'error';
+                currentList[i].msg = data.message || 'Lỗi không xác định';
+            }
+        } catch (err) {
+            currentList[i].status = 'error';
+            currentList[i].msg = err.message;
+        }
+
+        // Update UI sau mỗi lần lặp
+        setCardsList([...currentList]);
+    }
+
+    setLoading(false);
+    if (successCount > 0) {
+        alert(`Đã gửi thành công ${successCount} thẻ! Vui lòng chờ hệ thống duyệt.`);
+        // Không reset form ngay để khách nhìn thấy kết quả từng thẻ
+    }
+  };
+
+  // Nút Reset form để nạp đợt mới
+  const resetForm = () => {
+    setCardsList([{ id: Date.now(), telco: 'VIETTEL', amount: '10000', code: '', serial: '', status: 'idle', msg: '' }]);
+  };
+
+  // --- XỬ LÝ RÚT TIỀN (Giữ nguyên) ---
+  const handleWithdrawSubmit = async (e) => {
+    e.preventDefault();
+    if (!user) { alert("Bạn cần đăng nhập."); navigate('/login'); return; }
+    setLoading(true);
     
     const withdrawAmount = parseInt(withdrawForm.amount);
-    if (withdrawAmount < 10000) { alert("Số tiền rút tối thiểu là 10.000đ"); setLoading(false); return; }
+    if (withdrawAmount < 10000) { alert("Tối thiểu 10.000đ"); setLoading(false); return; }
     if (withdrawAmount > balance) { alert("Số dư không đủ!"); setLoading(false); return; }
-    if (!withdrawForm.bank_name) { alert("Vui lòng chọn ngân hàng!"); setLoading(false); return; }
+    if (!withdrawForm.bank_name) { alert("Chọn ngân hàng!"); setLoading(false); return; }
 
     try {
         const { error } = await supabase.rpc('create_withdraw_request', {
@@ -133,10 +203,8 @@ export default function CardPage() {
             p_account_number: withdrawForm.account_number,
             p_account_name: withdrawForm.account_name
         });
-
         if (error) throw error;
-        
-        alert("Tạo lệnh rút thành công! Admin sẽ duyệt vào lúc 13h hoặc 19h trong ngày.");
+        alert("Tạo lệnh rút thành công!");
         setWithdrawForm({ bank_name: '', account_number: '', account_name: '', amount: '' });
         fetchUserAndBalance(); 
     } catch (err) {
@@ -147,18 +215,16 @@ export default function CardPage() {
   };
 
   const formatCurrency = (num) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(num);
-
   const withdrawFee = 2000;
   const inputAmount = parseInt(withdrawForm.amount) || 0;
   const realReceived = inputAmount > withdrawFee ? inputAmount - withdrawFee : 0;
 
   return (
-    <div className="font-sans text-slate-900"> 
-      <div className="max-w-4xl mx-auto">
+    <div className="font-sans text-slate-900 bg-slate-50 min-h-screen pb-20"> 
+      <div className="max-w-5xl mx-auto pt-6 px-4">
         
         {/* --- Card Số dư --- */}
         <div className="bg-gradient-to-br from-blue-700 to-blue-900 rounded-2xl p-6 text-white shadow-xl mb-8 border border-blue-500/50 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full -mr-16 -mt-16 blur-2xl"></div>
             <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <h2 className="text-blue-100 text-sm font-bold uppercase tracking-wider mb-1">Số dư khả dụng</h2>
@@ -196,105 +262,151 @@ export default function CardPage() {
                         <span className="hidden sm:inline">
                             {tab === 'deposit' ? 'Nạp Thẻ' : tab === 'withdraw' ? 'Rút Tiền' : 'Lịch Sử'}
                         </span>
-                         <span className="sm:hidden">
-                            {tab === 'deposit' ? 'Nạp' : tab === 'withdraw' ? 'Rút' : 'Lịch sử'}
-                        </span>
                     </button>
                 ))}
             </div>
 
             <div className="p-4 sm:p-8 bg-white">
-                {/* --- TAB NẠP THẺ --- */}
+                {/* --- TAB NẠP THẺ (MULTI CARD) --- */}
                 {activeTab === 'deposit' && (
-                    <form onSubmit={handleCardSubmit} className="space-y-6 max-w-lg mx-auto animate-fade-in">
-                        <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4 text-yellow-800 text-sm rounded-r-lg">
-                            <p className="font-bold">Chiết khấu:</p>
-                            <div className="flex flex-col sm:flex-row sm:gap-4">
-                                <span>- Garena: <span className="font-bold text-green-600">15%</span></span>
-                                <span>- Viettel/Vina/Mobi: <span className="font-bold text-green-600">20%</span></span>
+                    <div className="animate-fade-in">
+                        {/* Bảng thông báo chiết khấu */}
+                        <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4 text-yellow-800 text-sm rounded-r-lg mb-6">
+                            <div className="flex flex-col sm:flex-row sm:gap-8 font-medium">
+                                <span>⚡ Garena: <span className="font-bold text-green-600">15%</span></span>
+                                <span>⚡ Viettel/Vina/Mobi: <span className="font-bold text-green-600">20%</span></span>
                             </div>
-                            <div className="mt-1 text-red-600 italic text-xs font-bold">* Lưu ý: Chọn sai mệnh giá sẽ bị phạt theo quy định.</div>
+                            <div className="mt-1 text-red-600 italic text-xs">* Chọn sai mệnh giá sẽ bị phạt.</div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-bold text-slate-700 mb-1">NHÀ MẠNG</label>
-                                <select className="w-full p-3 bg-slate-50 border border-slate-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none text-slate-800"
-                                    value={cardForm.telco} onChange={e => setCardForm({...cardForm, telco: e.target.value})}>
-                                    <option value="VIETTEL">Viettel</option>
-                                    <option value="MOBIFONE">Mobifone</option>
-                                    <option value="VINAPHONE">Vinaphone</option>
-                                    <option value="GARENA">Garena</option>
-                                    <option value="GATE">Gate</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-bold text-slate-700 mb-1">MỆNH GIÁ</label>
-                                <select className="w-full p-3 bg-slate-50 border border-slate-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none text-slate-800"
-                                    value={cardForm.amount} onChange={e => setCardForm({...cardForm, amount: e.target.value})}>
-                                    <option value="10000">10.000 đ</option>
-                                    <option value="20000">20.000 đ</option>
-                                    <option value="50000">50.000 đ</option>
-                                    <option value="100000">100.000 đ</option>
-                                    <option value="200000">200.000 đ</option>
-                                    <option value="500000">500.000 đ</option>
-                                </select>
-                            </div>
+                        {/* --- DANH SÁCH THẺ NHẬP --- */}
+                        <div className="space-y-4">
+                            {cardsList.map((card, index) => (
+                                <div key={card.id} className={`relative p-4 rounded-xl border-2 transition-all ${
+                                    card.status === 'processing' ? 'border-blue-300 bg-blue-50' :
+                                    card.status === 'success' ? 'border-green-300 bg-green-50' :
+                                    card.status === 'error' ? 'border-red-300 bg-red-50' :
+                                    'border-slate-100 bg-white hover:border-blue-200'
+                                }`}>
+                                    {/* Header dòng: Số thứ tự + Nút xóa */}
+                                    <div className="flex justify-between items-center mb-2">
+                                        <span className="text-xs font-bold text-slate-400 uppercase">Thẻ #{index + 1}</span>
+                                        {cardsList.length > 1 && (
+                                            <button onClick={() => removeCardRow(index)} type="button" className="text-slate-400 hover:text-red-500 transition-colors">
+                                                <TrashIcon className="w-5 h-5" />
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    {/* Grid Input */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                                        {/* 1. Loại thẻ */}
+                                        <select 
+                                            className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg font-semibold text-slate-700 focus:border-blue-500 outline-none"
+                                            value={card.telco} 
+                                            onChange={e => updateCardRow(index, 'telco', e.target.value)}
+                                            disabled={card.status === 'success' || card.status === 'processing'}
+                                        >
+                                            <option value="VIETTEL">Viettel</option>
+                                            <option value="MOBIFONE">Mobifone</option>
+                                            <option value="VINAPHONE">Vinaphone</option>
+                                            <option value="GARENA">Garena</option>
+                                            <option value="GATE">Gate</option>
+                                        </select>
+
+                                        {/* 2. Mệnh giá */}
+                                        <select 
+                                            className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg font-semibold text-slate-700 focus:border-blue-500 outline-none"
+                                            value={card.amount} 
+                                            onChange={e => updateCardRow(index, 'amount', e.target.value)}
+                                            disabled={card.status === 'success' || card.status === 'processing'}
+                                        >
+                                            <option value="10000">10.000 đ</option>
+                                            <option value="20000">20.000 đ</option>
+                                            <option value="50000">50.000 đ</option>
+                                            <option value="100000">100.000 đ</option>
+                                            <option value="200000">200.000 đ</option>
+                                            <option value="500000">500.000 đ</option>
+                                        </select>
+
+                                        {/* 3. Mã thẻ */}
+                                        <div className="relative">
+                                            <input 
+                                                type="text" placeholder="Mã thẻ" 
+                                                className="w-full p-2.5 border border-slate-200 rounded-lg font-mono text-sm focus:border-blue-500 outline-none"
+                                                value={card.code}
+                                                onChange={e => updateCardRow(index, 'code', e.target.value)}
+                                                disabled={card.status === 'success' || card.status === 'processing'}
+                                            />
+                                            <button onClick={() => handlePaste(index, 'code')} type="button" className="absolute right-2 top-2.5 text-slate-400 hover:text-blue-600">
+                                                <ClipboardDocumentIcon className="w-4 h-4" />
+                                            </button>
+                                        </div>
+
+                                        {/* 4. Serial */}
+                                        <div className="relative">
+                                            <input 
+                                                type="text" placeholder="Serial" 
+                                                className="w-full p-2.5 border border-slate-200 rounded-lg font-mono text-sm focus:border-blue-500 outline-none"
+                                                value={card.serial}
+                                                onChange={e => updateCardRow(index, 'serial', e.target.value)}
+                                                disabled={card.status === 'success' || card.status === 'processing'}
+                                            />
+                                            <button onClick={() => handlePaste(index, 'serial')} type="button" className="absolute right-2 top-2.5 text-slate-400 hover:text-blue-600">
+                                                <ClipboardDocumentIcon className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Thông báo trạng thái từng dòng */}
+                                    {card.msg && (
+                                        <div className={`mt-2 text-xs font-bold flex items-center gap-1 ${
+                                            card.status === 'success' ? 'text-green-600' : 
+                                            card.status === 'error' ? 'text-red-600' : 'text-blue-600'
+                                        }`}>
+                                            {card.status === 'success' && <CheckCircleIcon className="w-4 h-4" />}
+                                            {card.status === 'error' && <XCircleIcon className="w-4 h-4" />}
+                                            {card.status === 'processing' && <ArrowPathIcon className="w-4 h-4 animate-spin" />}
+                                            {card.msg}
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
                         </div>
 
-                        {/* --- MÃ THẺ --- */}
-                        <div>
-                            <label className="block text-sm font-bold text-slate-700 mb-1">MÃ THẺ</label>
-                            <div className="relative">
-                                <input 
-                                    type="text" 
-                                    placeholder="Nhập mã thẻ..." 
-                                    required 
-                                    className="w-full p-3 pr-10 border border-slate-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none font-mono tracking-wider text-lg text-slate-800 placeholder:text-slate-400 placeholder:font-sans placeholder:text-base" 
-                                    value={cardForm.code} 
-                                    onChange={e => setCardForm({...cardForm, code: e.target.value})} 
-                                />
+                        {/* --- BUTTONS ACTION --- */}
+                        <div className="mt-6 flex flex-col sm:flex-row gap-3">
+                            <button 
+                                type="button" 
+                                onClick={addCardRow}
+                                className="flex-1 py-3 border-2 border-dashed border-blue-300 text-blue-600 rounded-xl font-bold hover:bg-blue-50 transition-colors flex items-center justify-center gap-2"
+                            >
+                                <PlusCircleIcon className="w-6 h-6" />
+                                THÊM DÒNG
+                            </button>
+
+                            {cardsList.some(c => c.status === 'success' || c.status === 'error') && (
                                 <button 
                                     type="button" 
-                                    onClick={() => handlePaste('code')} 
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-600 transition-colors p-1.5 hover:bg-slate-100 rounded-full" 
-                                    title="Dán mã thẻ"
+                                    onClick={resetForm}
+                                    className="px-6 py-3 bg-gray-200 text-gray-700 rounded-xl font-bold hover:bg-gray-300 transition-colors"
                                 >
-                                    <ClipboardDocumentIcon className="w-5 h-5" />
+                                    LÀM MỚI
                                 </button>
-                            </div>
-                        </div>
-                        
-                        {/* --- SERIAL --- */}
-                        <div>
-                            <label className="block text-sm font-bold text-slate-700 mb-1">SERIAL</label>
-                            <div className="relative">
-                                <input 
-                                    type="text" 
-                                    placeholder="Nhập số serial..." 
-                                    required 
-                                    className="w-full p-3 pr-10 border border-slate-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none font-mono tracking-wider text-lg text-slate-800 placeholder:text-slate-400 placeholder:font-sans placeholder:text-base" 
-                                    value={cardForm.serial} 
-                                    onChange={e => setCardForm({...cardForm, serial: e.target.value})} 
-                                />
-                                <button 
-                                    type="button" 
-                                    onClick={() => handlePaste('serial')} 
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-600 transition-colors p-1.5 hover:bg-slate-100 rounded-full" 
-                                    title="Dán serial"
-                                >
-                                    <ClipboardDocumentIcon className="w-5 h-5" />
-                                </button>
-                            </div>
-                        </div>
+                            )}
 
-                        <button disabled={loading} className="w-full bg-blue-700 hover:bg-blue-800 text-white font-bold py-4 rounded-lg shadow-lg text-lg transition-transform active:scale-95">
-                            {loading ? 'ĐANG XỬ LÝ...' : 'NẠP THẺ NGAY'}
-                        </button>
-                    </form>
+                            <button 
+                                onClick={handleBulkSubmit}
+                                disabled={loading} 
+                                className="flex-[2] py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg hover:bg-blue-700 transition-transform active:scale-95 disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2"
+                            >
+                                {loading ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : 'GỬI TẤT CẢ'}
+                            </button>
+                        </div>
+                    </div>
                 )}
 
-                {/* --- TAB RÚT TIỀN --- */}
+                {/* --- TAB RÚT TIỀN (Giữ nguyên code cũ) --- */}
                 {activeTab === 'withdraw' && (
                     <form onSubmit={handleWithdrawSubmit} className="space-y-6 max-w-lg mx-auto animate-fade-in">
                         <div className="bg-red-50 border-l-4 border-red-600 p-4 rounded-r-lg">
@@ -328,76 +440,41 @@ export default function CardPage() {
                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-bold text-slate-700 mb-1 uppercase">Số tài khoản</label>
-                                    <input 
-                                        type="text" 
-                                        placeholder="Số TK..." 
-                                        required 
-                                        className="w-full p-3 border border-slate-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none font-mono text-slate-900 placeholder:text-slate-400" 
-                                        value={withdrawForm.account_number} 
-                                        onChange={e => setWithdrawForm({...withdrawForm, account_number: e.target.value})} 
-                                    />
+                                    <input type="text" placeholder="Số TK..." required className="w-full p-3 border border-slate-300 rounded-lg focus:border-blue-500 outline-none font-mono text-slate-900" 
+                                        value={withdrawForm.account_number} onChange={e => setWithdrawForm({...withdrawForm, account_number: e.target.value})} />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-bold text-slate-700 mb-1 uppercase">Chủ tài khoản</label>
-                                    <input 
-                                        type="text" 
-                                        placeholder="TÊN IN HOA..." 
-                                        required 
-                                        className="w-full p-3 border border-slate-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none text-slate-900 uppercase placeholder:normal-case placeholder:text-slate-400" 
-                                        value={withdrawForm.account_name} 
-                                        onChange={e => setWithdrawForm({...withdrawForm, account_name: e.target.value.toUpperCase()})} 
-                                    />
+                                    <input type="text" placeholder="TÊN IN HOA..." required className="w-full p-3 border border-slate-300 rounded-lg focus:border-blue-500 outline-none text-slate-900 uppercase" 
+                                        value={withdrawForm.account_name} onChange={e => setWithdrawForm({...withdrawForm, account_name: e.target.value.toUpperCase()})} />
                                 </div>
                             </div>
 
                              <div>
                                 <label className="block text-sm font-bold text-slate-700 mb-1 uppercase">Số tiền muốn rút (Từ ví)</label>
                                 <div className="relative">
-                                    <input 
-                                        type="number" 
-                                        placeholder="Nhập số tiền..." 
-                                        required 
-                                        className="w-full p-3 pr-16 border border-slate-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none text-xl font-bold text-red-600 placeholder:text-slate-300 placeholder:text-base placeholder:font-normal" 
-                                        value={withdrawForm.amount} 
-                                        onChange={e => setWithdrawForm({...withdrawForm, amount: e.target.value})} 
-                                    />
+                                    <input type="number" placeholder="Nhập số tiền..." required className="w-full p-3 pr-16 border border-slate-300 rounded-lg focus:border-blue-500 outline-none text-xl font-bold text-red-600" 
+                                        value={withdrawForm.amount} onChange={e => setWithdrawForm({...withdrawForm, amount: e.target.value})} />
                                     <span className="absolute right-4 top-1/2 -translate-y-1/2 font-bold text-slate-500 text-sm">VNĐ</span>
                                 </div>
-
                                 {inputAmount > 0 && (
                                      <div className="mt-3 bg-slate-100 p-4 rounded-lg border border-slate-200 animate-fade-in">
-                                        <div className="flex justify-between items-center text-sm text-slate-500 mb-1">
-                                            <span>Số tiền rút:</span>
-                                            <span className="font-medium">{formatCurrency(inputAmount)}</span>
-                                        </div>
-                                        <div className="flex justify-between items-center text-sm text-slate-500 mb-2 border-b border-slate-200 pb-2">
-                                            <span>Phí giao dịch:</span>
-                                            <span className="font-medium text-red-500">-{formatCurrency(withdrawFee)}</span>
-                                        </div>
-                                        <div className="flex justify-between items-center">
-                                            <span className="font-bold text-slate-800 uppercase flex items-center gap-1">
-                                                <CalculatorIcon className="w-4 h-4" />
-                                                Thực nhận:
-                                            </span>
-                                            <span className="font-extrabold text-xl text-green-600">
-                                                {formatCurrency(realReceived)}
-                                            </span>
-                                        </div>
+                                        <div className="flex justify-between items-center text-sm text-slate-500 mb-1"><span>Số tiền rút:</span><span className="font-medium">{formatCurrency(inputAmount)}</span></div>
+                                        <div className="flex justify-between items-center text-sm text-slate-500 mb-2 border-b border-slate-200 pb-2"><span>Phí giao dịch:</span><span className="font-medium text-red-500">-{formatCurrency(withdrawFee)}</span></div>
+                                        <div className="flex justify-between items-center"><span className="font-bold text-slate-800 uppercase flex items-center gap-1"><CalculatorIcon className="w-4 h-4" />Thực nhận:</span><span className="font-extrabold text-xl text-green-600">{formatCurrency(realReceived)}</span></div>
                                     </div>
                                 )}
                             </div>
                         </div>
-
                         <button disabled={loading} className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-lg shadow-lg text-lg transition-transform active:scale-95 mt-4">
                             {loading ? 'ĐANG TẠO LỆNH...' : 'XÁC NHẬN RÚT TIỀN'}
                         </button>
                     </form>
                 )}
 
-                {/* --- TAB LỊCH SỬ (PHẦN ĐÃ SỬA ĐỔI) --- */}
+                {/* --- TAB LỊCH SỬ (Giữ nguyên code hiển thị đẹp) --- */}
                 {activeTab === 'history' && (
                     <div className="space-y-8 animate-fade-in">
-                         {/* Bảng Nạp Thẻ */}
                         <div>
                             <h3 className="font-bold text-lg text-blue-800 border-l-4 border-blue-600 pl-3 mb-4">Lịch Sử Nạp Thẻ</h3>
                             <div className="overflow-x-auto border border-slate-200 rounded-lg">
@@ -405,59 +482,30 @@ export default function CardPage() {
                                     <thead className="bg-slate-100 text-slate-700 font-bold uppercase text-xs">
                                             <tr><th className="px-4 py-3">Thời gian</th><th className="px-4 py-3">Nhà mạng</th><th className="px-4 py-3 text-right">Mệnh giá</th><th className="px-4 py-3 text-right">Thực nhận</th><th className="px-4 py-3 text-center">Trạng thái</th></tr>
                                     </thead>
-                                    {/* 👇👇👇 PHẦN CODE HIỂN THỊ TRẠNG THÁI MỚI Ở ĐÂY 👇👇👇 */}
                                     <tbody className="divide-y divide-slate-200">
                                         {history.cards && history.cards.length > 0 ? (
                                             history.cards.map(item => (
                                                 <tr key={item.id} className="bg-white hover:bg-blue-50 transition-colors">
                                                     <td className="px-4 py-3 text-slate-500">{new Date(item.created_at).toLocaleString('vi-VN')}</td>
-                                                    <td className="px-4 py-3 font-bold text-slate-800">{item.telco}</td>
-                                                    <td className="px-4 py-3 text-right font-medium">{formatCurrency(item.declared_amount)}</td>
-                                                    <td className="px-4 py-3 text-right font-bold text-green-600">{item.received_amount > 0 ? formatCurrency(item.received_amount) : '-'}</td>
-                                                    
+                                                    <td className="px-4 py-3">
+                                                        <div className="font-bold text-slate-800">{item.telco}</div>
+                                                        <div className="text-xs text-slate-400 font-mono">{item.serial}</div>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-right font-medium text-slate-600">{formatCurrency(item.declared_amount)}</td>
+                                                    <td className="px-4 py-3 text-right font-bold text-green-600">{item.received_amount > 0 ? `+${formatCurrency(item.received_amount)}` : '-'}</td>
                                                     <td className="px-4 py-3 text-center align-middle">
-                                                        {/* Thành công */}
-                                                        {item.status === 'success' && (
-                                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
-                                                                ✅ Thẻ đúng
-                                                            </span>
-                                                        )}
-                                                        {/* Đang xử lý */}
-                                                        {item.status === 'pending' && (
-                                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200 animate-pulse">
-                                                                ⏳ Đang xử lý...
-                                                            </span>
-                                                        )}
-                                                        {/* Sai mệnh giá */}
-                                                        {item.status === 'wrong_amount' && (
-                                                            <div className="flex flex-col items-center">
-                                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 border border-yellow-200">
-                                                                    ⚠️ Sai mệnh giá
-                                                                </span>
-                                                                <span className="text-[10px] text-yellow-600 mt-1">Phạt còn 1.000đ</span>
-                                                            </div>
-                                                        )}
-                                                        {/* Thất bại */}
-                                                        {item.status === 'failed' && (
-                                                            <div className="flex flex-col items-center">
-                                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-200">
-                                                                    ❌ Thất bại
-                                                                </span>
-                                                                <span className="text-[10px] text-red-500 mt-1 max-w-[150px] truncate" title={item.message}>
-                                                                    {item.message || 'Thẻ sai hoặc đã dùng'}
-                                                                </span>
-                                                            </div>
-                                                        )}
+                                                        {item.status === 'success' && <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">✅ Thẻ đúng</span>}
+                                                        {item.status === 'pending' && <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200 animate-pulse">⏳ Đang xử lý...</span>}
+                                                        {item.status === 'wrong_amount' && <div className="flex flex-col items-center"><span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 border border-yellow-200">⚠️ Sai mệnh giá</span><span className="text-[10px] text-yellow-600 mt-1">Phạt còn 1.000đ</span></div>}
+                                                        {item.status === 'failed' && <div className="flex flex-col items-center"><span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-200">❌ Thất bại</span><span className="text-[10px] text-red-500 mt-1 max-w-[150px] truncate" title={item.message}>{item.message || 'Thẻ sai hoặc đã dùng'}</span></div>}
                                                     </td>
                                                 </tr>
                                             ))
                                         ) : (<tr><td colSpan="5" className="p-8 text-center text-slate-500 italic">Chưa có giao dịch nào</td></tr>)}
                                     </tbody>
-                                    {/* 👆👆👆 KẾT THÚC PHẦN MỚI 👆👆👆 */}
                                 </table>
                             </div>
                         </div>
-                         {/* Bảng Rút Tiền */}
                         <div>
                             <h3 className="font-bold text-lg text-red-800 border-l-4 border-red-600 pl-3 mb-4">Lịch Sử Rút Tiền</h3>
                             <div className="overflow-x-auto border border-slate-200 rounded-lg">
