@@ -276,7 +276,7 @@ export default function CardPage() {
                                 <span>⚡ Garena: <span className="font-bold text-green-600">15%</span></span>
                                 <span>⚡ Viettel/Vina/Mobi: <span className="font-bold text-green-600">20%</span></span>
                             </div>
-                            <div className="mt-1 text-red-600 italic text-xs">* Chọn sai mệnh giá sẽ bị phạt.</div>
+                            <div className="mt-1 text-red-600 italic text-xs font-bold">* Lưu ý: Chọn sai mệnh giá sẽ bị phạt theo quy định.</div>
                         </div>
 
                         {/* --- DANH SÁCH THẺ NHẬP --- */}
