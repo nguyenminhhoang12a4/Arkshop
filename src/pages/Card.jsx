@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-// 1. Thêm useNavigate để chuyển trang
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabaseClient';
 import { BanknotesIcon, ClockIcon, CreditCardIcon, CalculatorIcon, ClipboardDocumentIcon } from '@heroicons/react/24/solid';
@@ -20,7 +19,6 @@ const BANK_LIST = [
 ];
 
 export default function CardPage() {
-  // 2. Khởi tạo hook chuyển trang
   const navigate = useNavigate();
   
   const [activeTab, setActiveTab] = useState('deposit'); 
@@ -68,7 +66,6 @@ export default function CardPage() {
     }
   };
 
-  // --- HÀM XỬ LÝ DÁN (PASTE) ---
   const handlePaste = async (field) => {
     try {
         const text = await navigator.clipboard.readText();
@@ -80,17 +77,15 @@ export default function CardPage() {
     }
   };
 
-  // --- XỬ LÝ NẠP THẺ ---
   const handleCardSubmit = async (e) => {
     e.preventDefault();
 
-    // 3. KIỂM TRA ĐĂNG NHẬP (Thêm mới)
     if (!user) {
         const confirmLogin = confirm("Bạn cần đăng nhập để nạp thẻ. Bạn có muốn đăng nhập ngay không?");
         if (confirmLogin) {
-            navigate('/login'); // Chuyển sang trang login
+            navigate('/login'); 
         }
-        return; // Dừng hàm lại, không chạy tiếp
+        return; 
     }
 
     setLoading(true);
@@ -115,11 +110,9 @@ export default function CardPage() {
     }
   };
 
-  // --- XỬ LÝ RÚT TIỀN ---
   const handleWithdrawSubmit = async (e) => {
     e.preventDefault();
 
-    // 4. KIỂM TRA ĐĂNG NHẬP CHO RÚT TIỀN LUÔN (Thêm mới)
     if (!user) {
         alert("Bạn cần đăng nhập để thực hiện rút tiền.");
         navigate('/login');
@@ -155,7 +148,6 @@ export default function CardPage() {
 
   const formatCurrency = (num) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(num);
 
-  // Tính toán hiển thị (Calculator)
   const withdrawFee = 2000;
   const inputAmount = parseInt(withdrawForm.amount) || 0;
   const realReceived = inputAmount > withdrawFee ? inputAmount - withdrawFee : 0;
@@ -250,7 +242,7 @@ export default function CardPage() {
                             </div>
                         </div>
 
-                        {/* --- UI MỚI: MÃ THẺ (Paste Icon bên trong) --- */}
+                        {/* --- MÃ THẺ --- */}
                         <div>
                             <label className="block text-sm font-bold text-slate-700 mb-1">MÃ THẺ</label>
                             <div className="relative">
@@ -273,7 +265,7 @@ export default function CardPage() {
                             </div>
                         </div>
                         
-                        {/* --- UI MỚI: SERIAL (Paste Icon bên trong) --- */}
+                        {/* --- SERIAL --- */}
                         <div>
                             <label className="block text-sm font-bold text-slate-700 mb-1">SERIAL</label>
                             <div className="relative">
@@ -311,7 +303,6 @@ export default function CardPage() {
                         </div>
 
                         <div className="space-y-4">
-                             {/* --- TÍCH HỢP LIST NGÂN HÀNG --- */}
                              <div>
                                 <label className="block text-sm font-bold text-slate-700 mb-1 uppercase">Ngân hàng thụ hưởng</label>
                                 <div className="relative">
@@ -326,7 +317,6 @@ export default function CardPage() {
                                             <option key={index} value={bank}>{bank}</option>
                                         ))}
                                     </select>
-                                    {/* Mũi tên custom cho select */}
                                     <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
                                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
                                             <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
@@ -374,7 +364,6 @@ export default function CardPage() {
                                     <span className="absolute right-4 top-1/2 -translate-y-1/2 font-bold text-slate-500 text-sm">VNĐ</span>
                                 </div>
 
-                                {/* Box tính toán */}
                                 {inputAmount > 0 && (
                                      <div className="mt-3 bg-slate-100 p-4 rounded-lg border border-slate-200 animate-fade-in">
                                         <div className="flex justify-between items-center text-sm text-slate-500 mb-1">
@@ -405,7 +394,7 @@ export default function CardPage() {
                     </form>
                 )}
 
-                {/* --- TAB LỊCH SỬ (Giữ nguyên) --- */}
+                {/* --- TAB LỊCH SỬ (PHẦN ĐÃ SỬA ĐỔI) --- */}
                 {activeTab === 'history' && (
                     <div className="space-y-8 animate-fade-in">
                          {/* Bảng Nạp Thẻ */}
@@ -416,19 +405,55 @@ export default function CardPage() {
                                     <thead className="bg-slate-100 text-slate-700 font-bold uppercase text-xs">
                                             <tr><th className="px-4 py-3">Thời gian</th><th className="px-4 py-3">Nhà mạng</th><th className="px-4 py-3 text-right">Mệnh giá</th><th className="px-4 py-3 text-right">Thực nhận</th><th className="px-4 py-3 text-center">Trạng thái</th></tr>
                                     </thead>
+                                    {/* 👇👇👇 PHẦN CODE HIỂN THỊ TRẠNG THÁI MỚI Ở ĐÂY 👇👇👇 */}
                                     <tbody className="divide-y divide-slate-200">
-                                            {history.cards && history.cards.length > 0 ? (
-                                                history.cards.map(item => (
-                                                    <tr key={item.id} className="bg-white hover:bg-blue-50">
-                                                        <td className="px-4 py-3 text-slate-500">{new Date(item.created_at).toLocaleString('vi-VN')}</td>
-                                                        <td className="px-4 py-3 font-bold text-slate-800">{item.telco}</td>
-                                                        <td className="px-4 py-3 text-right font-medium">{formatCurrency(item.declared_amount)}</td>
-                                                        <td className="px-4 py-3 text-right font-bold text-green-600">{item.received_amount > 0 ? formatCurrency(item.received_amount) : '-'}</td>
-                                                        <td className="px-4 py-3 text-center"><span className={`px-2 py-1 rounded text-xs font-bold ${item.status === 'success' ? 'bg-green-100 text-green-700' : item.status === 'failed' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>{item.status}</span></td>
-                                                    </tr>
-                                                ))
-                                            ) : (<tr><td colSpan="5" className="p-4 text-center text-slate-500">Chưa có giao dịch nào</td></tr>)}
+                                        {history.cards && history.cards.length > 0 ? (
+                                            history.cards.map(item => (
+                                                <tr key={item.id} className="bg-white hover:bg-blue-50 transition-colors">
+                                                    <td className="px-4 py-3 text-slate-500">{new Date(item.created_at).toLocaleString('vi-VN')}</td>
+                                                    <td className="px-4 py-3 font-bold text-slate-800">{item.telco}</td>
+                                                    <td className="px-4 py-3 text-right font-medium">{formatCurrency(item.declared_amount)}</td>
+                                                    <td className="px-4 py-3 text-right font-bold text-green-600">{item.received_amount > 0 ? formatCurrency(item.received_amount) : '-'}</td>
+                                                    
+                                                    <td className="px-4 py-3 text-center align-middle">
+                                                        {/* Thành công */}
+                                                        {item.status === 'success' && (
+                                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
+                                                                ✅ Thẻ đúng
+                                                            </span>
+                                                        )}
+                                                        {/* Đang xử lý */}
+                                                        {item.status === 'pending' && (
+                                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200 animate-pulse">
+                                                                ⏳ Đang xử lý...
+                                                            </span>
+                                                        )}
+                                                        {/* Sai mệnh giá */}
+                                                        {item.status === 'wrong_amount' && (
+                                                            <div className="flex flex-col items-center">
+                                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 border border-yellow-200">
+                                                                    ⚠️ Sai mệnh giá
+                                                                </span>
+                                                                <span className="text-[10px] text-yellow-600 mt-1">Phạt còn 1.000đ</span>
+                                                            </div>
+                                                        )}
+                                                        {/* Thất bại */}
+                                                        {item.status === 'failed' && (
+                                                            <div className="flex flex-col items-center">
+                                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-200">
+                                                                    ❌ Thất bại
+                                                                </span>
+                                                                <span className="text-[10px] text-red-500 mt-1 max-w-[150px] truncate" title={item.message}>
+                                                                    {item.message || 'Thẻ sai hoặc đã dùng'}
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        ) : (<tr><td colSpan="5" className="p-8 text-center text-slate-500 italic">Chưa có giao dịch nào</td></tr>)}
                                     </tbody>
+                                    {/* 👆👆👆 KẾT THÚC PHẦN MỚI 👆👆👆 */}
                                 </table>
                             </div>
                         </div>
