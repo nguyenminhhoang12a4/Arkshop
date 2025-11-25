@@ -127,16 +127,13 @@ export default function CardPage() {
     setLoading(true);
 
     // Duyệt qua từng thẻ và gửi đi
-    // Dùng vòng lặp for...of để xử lý tuần tự (hoặc Promise.all nếu muốn song song)
     let successCount = 0;
-    
-    // Tạo bản sao để update state
     let currentList = [...cardsList];
 
     for (let i = 0; i < currentList.length; i++) {
         const card = currentList[i];
 
-        // Chỉ xử lý những thẻ chưa thành công (idle hoặc error)
+        // Chỉ xử lý những thẻ chưa thành công
         if (card.status === 'success') continue;
 
         // Cập nhật trạng thái đang chạy
@@ -176,16 +173,15 @@ export default function CardPage() {
     setLoading(false);
     if (successCount > 0) {
         alert(`Đã gửi thành công ${successCount} thẻ! Vui lòng chờ hệ thống duyệt.`);
-        // Không reset form ngay để khách nhìn thấy kết quả từng thẻ
     }
   };
 
-  // Nút Reset form để nạp đợt mới
+  // Nút Reset form
   const resetForm = () => {
     setCardsList([{ id: Date.now(), telco: 'VIETTEL', amount: '10000', code: '', serial: '', status: 'idle', msg: '' }]);
   };
 
-  // --- XỬ LÝ RÚT TIỀN (Giữ nguyên) ---
+  // --- XỬ LÝ RÚT TIỀN ---
   const handleWithdrawSubmit = async (e) => {
     e.preventDefault();
     if (!user) { alert("Bạn cần đăng nhập."); navigate('/login'); return; }
@@ -406,7 +402,7 @@ export default function CardPage() {
                     </div>
                 )}
 
-                {/* --- TAB RÚT TIỀN (Giữ nguyên code cũ) --- */}
+                {/* --- TAB RÚT TIỀN --- */}
                 {activeTab === 'withdraw' && (
                     <form onSubmit={handleWithdrawSubmit} className="space-y-6 max-w-lg mx-auto animate-fade-in">
                         <div className="bg-red-50 border-l-4 border-red-600 p-4 rounded-r-lg">
@@ -472,40 +468,113 @@ export default function CardPage() {
                     </form>
                 )}
 
-                {/* --- TAB LỊCH SỬ (Giữ nguyên code hiển thị đẹp) --- */}
+                {/* --- TAB LỊCH SỬ MỚI --- */}
                 {activeTab === 'history' && (
                     <div className="space-y-8 animate-fade-in">
+                        {/* Bảng Nạp Thẻ */}
                         <div>
                             <h3 className="font-bold text-lg text-blue-800 border-l-4 border-blue-600 pl-3 mb-4">Lịch Sử Nạp Thẻ</h3>
-                            <div className="overflow-x-auto border border-slate-200 rounded-lg">
+                            <div className="overflow-x-auto border border-slate-200 rounded-lg shadow-sm">
                                 <table className="min-w-full text-sm text-left">
-                                    <thead className="bg-slate-100 text-slate-700 font-bold uppercase text-xs">
-                                            <tr><th className="px-4 py-3">Thời gian</th><th className="px-4 py-3">Nhà mạng</th><th className="px-4 py-3 text-right">Mệnh giá</th><th className="px-4 py-3 text-right">Thực nhận</th><th className="px-4 py-3 text-center">Trạng thái</th></tr>
+                                    <thead className="bg-slate-100 text-slate-700 font-bold uppercase text-xs border-b border-slate-200">
+                                        <tr>
+                                            <th className="px-4 py-3 whitespace-nowrap">Thời gian</th>
+                                            <th className="px-4 py-3 whitespace-nowrap">Nhà mạng</th>
+                                            <th className="px-4 py-3 whitespace-nowrap">Thông tin thẻ</th> {/* Cột Mới */}
+                                            <th className="px-4 py-3 text-right whitespace-nowrap">Mệnh giá</th>
+                                            <th className="px-4 py-3 text-right whitespace-nowrap">Thực nhận</th>
+                                            <th className="px-4 py-3 text-center whitespace-nowrap">Trạng thái</th>
+                                        </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-200">
                                         {history.cards && history.cards.length > 0 ? (
                                             history.cards.map(item => (
                                                 <tr key={item.id} className="bg-white hover:bg-blue-50 transition-colors">
-                                                    <td className="px-4 py-3 text-slate-500">{new Date(item.created_at).toLocaleString('vi-VN')}</td>
-                                                    <td className="px-4 py-3">
-                                                        <div className="font-bold text-slate-800">{item.telco}</div>
-                                                        <div className="text-xs text-slate-400 font-mono">{item.serial}</div>
+                                                    {/* 1. Thời gian */}
+                                                    <td className="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">
+                                                        {new Date(item.created_at).toLocaleString('vi-VN')}
                                                     </td>
-                                                    <td className="px-4 py-3 text-right font-medium text-slate-600">{formatCurrency(item.declared_amount)}</td>
-                                                    <td className="px-4 py-3 text-right font-bold text-green-600">{item.received_amount > 0 ? `+${formatCurrency(item.received_amount)}` : '-'}</td>
-                                                    <td className="px-4 py-3 text-center align-middle">
-                                                        {item.status === 'success' && <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">✅ Thẻ đúng</span>}
-                                                        {item.status === 'pending' && <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200 animate-pulse">⏳ Đang xử lý...</span>}
-                                                        {item.status === 'wrong_amount' && <div className="flex flex-col items-center"><span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 border border-yellow-200">⚠️ Sai mệnh giá</span><span className="text-[10px] text-yellow-600 mt-1">Phạt còn 1.000đ</span></div>}
-                                                        {item.status === 'failed' && <div className="flex flex-col items-center"><span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-200">❌ Thất bại</span><span className="text-[10px] text-red-500 mt-1 max-w-[150px] truncate" title={item.message}>{item.message || 'Thẻ sai hoặc đã dùng'}</span></div>}
+
+                                                    {/* 2. Nhà mạng */}
+                                                    <td className="px-4 py-3">
+                                                        <span className="font-bold text-blue-700 bg-blue-50 px-2 py-1 rounded border border-blue-100 text-xs">
+                                                            {item.telco}
+                                                        </span>
+                                                    </td>
+
+                                                    {/* 3. Thông tin thẻ (Mới thêm Mã & Seri) */}
+                                                    <td className="px-4 py-3">
+                                                        <div className="flex flex-col gap-1">
+                                                            <div className="text-xs text-slate-600">
+                                                                <span className="font-semibold text-slate-400 inline-block w-10">Mã:</span> 
+                                                                <span className="font-mono font-medium select-all">{item.code}</span>
+                                                            </div>
+                                                            <div className="text-xs text-slate-600">
+                                                                <span className="font-semibold text-slate-400 inline-block w-10">Seri:</span> 
+                                                                <span className="font-mono font-medium select-all">{item.serial}</span>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+
+                                                    {/* 4. Mệnh giá */}
+                                                    <td className="px-4 py-3 text-right font-medium text-slate-600 whitespace-nowrap">
+                                                        {formatCurrency(item.declared_amount)}
+                                                    </td>
+
+                                                    {/* 5. Thực nhận */}
+                                                    <td className="px-4 py-3 text-right whitespace-nowrap">
+                                                        {item.received_amount > 0 ? (
+                                                            <span className="font-bold text-green-600">+{formatCurrency(item.received_amount)}</span>
+                                                        ) : (
+                                                            <span className="text-slate-300">-</span>
+                                                        )}
+                                                    </td>
+
+                                                    {/* 6. Trạng thái */}
+                                                    <td className="px-4 py-3 text-center align-middle whitespace-nowrap">
+                                                        {item.status === 'success' && (
+                                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
+                                                                ✅ Thẻ đúng
+                                                            </span>
+                                                        )}
+                                                        {item.status === 'pending' && (
+                                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200 animate-pulse">
+                                                                ⏳ Đang xử lý...
+                                                            </span>
+                                                        )}
+                                                        {item.status === 'wrong_amount' && (
+                                                            <div className="flex flex-col items-center">
+                                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 border border-yellow-200">
+                                                                    ⚠️ Sai mệnh giá
+                                                                </span>
+                                                                <span className="text-[10px] text-yellow-600 mt-1">Phạt còn 1.000đ</span>
+                                                            </div>
+                                                        )}
+                                                        {item.status === 'failed' && (
+                                                            <div className="flex flex-col items-center">
+                                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-200">
+                                                                    ❌ Thất bại
+                                                                </span>
+                                                                <span className="text-[10px] text-red-500 mt-1 max-w-[150px] truncate" title={item.message}>
+                                                                    {item.message || 'Thẻ sai/Đã dùng'}
+                                                                </span>
+                                                            </div>
+                                                        )}
                                                     </td>
                                                 </tr>
                                             ))
-                                        ) : (<tr><td colSpan="5" className="p-8 text-center text-slate-500 italic">Chưa có giao dịch nào</td></tr>)}
+                                        ) : (
+                                            <tr>
+                                                <td colSpan="6" className="p-8 text-center text-slate-500 italic">
+                                                    Chưa có giao dịch nào
+                                                </td>
+                                            </tr>
+                                        )}
                                     </tbody>
                                 </table>
                             </div>
                         </div>
+                        {/* Bảng Rút Tiền */}
                         <div>
                             <h3 className="font-bold text-lg text-red-800 border-l-4 border-red-600 pl-3 mb-4">Lịch Sử Rút Tiền</h3>
                             <div className="overflow-x-auto border border-slate-200 rounded-lg">
