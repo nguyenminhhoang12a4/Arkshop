@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+// 1. Thêm useNavigate để chuyển trang
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabaseClient';
 import { BanknotesIcon, ClockIcon, CreditCardIcon, CalculatorIcon, ClipboardDocumentIcon } from '@heroicons/react/24/solid';
 
@@ -18,6 +20,9 @@ const BANK_LIST = [
 ];
 
 export default function CardPage() {
+  // 2. Khởi tạo hook chuyển trang
+  const navigate = useNavigate();
+  
   const [activeTab, setActiveTab] = useState('deposit'); 
   const [balance, setBalance] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -78,6 +83,16 @@ export default function CardPage() {
   // --- XỬ LÝ NẠP THẺ ---
   const handleCardSubmit = async (e) => {
     e.preventDefault();
+
+    // 3. KIỂM TRA ĐĂNG NHẬP (Thêm mới)
+    if (!user) {
+        const confirmLogin = confirm("Bạn cần đăng nhập để nạp thẻ. Bạn có muốn đăng nhập ngay không?");
+        if (confirmLogin) {
+            navigate('/login'); // Chuyển sang trang login
+        }
+        return; // Dừng hàm lại, không chạy tiếp
+    }
+
     setLoading(true);
 
     try {
@@ -103,6 +118,14 @@ export default function CardPage() {
   // --- XỬ LÝ RÚT TIỀN ---
   const handleWithdrawSubmit = async (e) => {
     e.preventDefault();
+
+    // 4. KIỂM TRA ĐĂNG NHẬP CHO RÚT TIỀN LUÔN (Thêm mới)
+    if (!user) {
+        alert("Bạn cần đăng nhập để thực hiện rút tiền.");
+        navigate('/login');
+        return;
+    }
+
     setLoading(true);
     
     const withdrawAmount = parseInt(withdrawForm.amount);
@@ -152,10 +175,10 @@ export default function CardPage() {
                     </div>
                 </div>
                 <div className="bg-white/10 backdrop-blur-sm border border-white/20 p-3 rounded-lg flex items-center gap-3">
-                   <div className="bg-green-500 w-3 h-3 rounded-full animate-pulse"></div>
+                   <div className={`w-3 h-3 rounded-full ${user ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
                    <div className="text-sm">
                         <p className="text-blue-200 text-xs">Tài khoản</p>
-                        <p className="font-mono font-bold">{user?.email}</p>
+                        <p className="font-mono font-bold">{user ? user.email : 'Chưa đăng nhập'}</p>
                    </div>
                 </div>
             </div>
@@ -391,20 +414,20 @@ export default function CardPage() {
                             <div className="overflow-x-auto border border-slate-200 rounded-lg">
                                 <table className="min-w-full text-sm text-left">
                                     <thead className="bg-slate-100 text-slate-700 font-bold uppercase text-xs">
-                                        <tr><th className="px-4 py-3">Thời gian</th><th className="px-4 py-3">Nhà mạng</th><th className="px-4 py-3 text-right">Mệnh giá</th><th className="px-4 py-3 text-right">Thực nhận</th><th className="px-4 py-3 text-center">Trạng thái</th></tr>
+                                            <tr><th className="px-4 py-3">Thời gian</th><th className="px-4 py-3">Nhà mạng</th><th className="px-4 py-3 text-right">Mệnh giá</th><th className="px-4 py-3 text-right">Thực nhận</th><th className="px-4 py-3 text-center">Trạng thái</th></tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-200">
-                                        {history.cards && history.cards.length > 0 ? (
-                                            history.cards.map(item => (
-                                                <tr key={item.id} className="bg-white hover:bg-blue-50">
-                                                    <td className="px-4 py-3 text-slate-500">{new Date(item.created_at).toLocaleString('vi-VN')}</td>
-                                                    <td className="px-4 py-3 font-bold text-slate-800">{item.telco}</td>
-                                                    <td className="px-4 py-3 text-right font-medium">{formatCurrency(item.declared_amount)}</td>
-                                                    <td className="px-4 py-3 text-right font-bold text-green-600">{item.received_amount > 0 ? formatCurrency(item.received_amount) : '-'}</td>
-                                                    <td className="px-4 py-3 text-center"><span className={`px-2 py-1 rounded text-xs font-bold ${item.status === 'success' ? 'bg-green-100 text-green-700' : item.status === 'failed' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>{item.status}</span></td>
-                                                </tr>
-                                            ))
-                                        ) : (<tr><td colSpan="5" className="p-4 text-center text-slate-500">Chưa có giao dịch nào</td></tr>)}
+                                            {history.cards && history.cards.length > 0 ? (
+                                                history.cards.map(item => (
+                                                    <tr key={item.id} className="bg-white hover:bg-blue-50">
+                                                        <td className="px-4 py-3 text-slate-500">{new Date(item.created_at).toLocaleString('vi-VN')}</td>
+                                                        <td className="px-4 py-3 font-bold text-slate-800">{item.telco}</td>
+                                                        <td className="px-4 py-3 text-right font-medium">{formatCurrency(item.declared_amount)}</td>
+                                                        <td className="px-4 py-3 text-right font-bold text-green-600">{item.received_amount > 0 ? formatCurrency(item.received_amount) : '-'}</td>
+                                                        <td className="px-4 py-3 text-center"><span className={`px-2 py-1 rounded text-xs font-bold ${item.status === 'success' ? 'bg-green-100 text-green-700' : item.status === 'failed' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>{item.status}</span></td>
+                                                    </tr>
+                                                ))
+                                            ) : (<tr><td colSpan="5" className="p-4 text-center text-slate-500">Chưa có giao dịch nào</td></tr>)}
                                     </tbody>
                                 </table>
                             </div>
@@ -415,19 +438,19 @@ export default function CardPage() {
                             <div className="overflow-x-auto border border-slate-200 rounded-lg">
                                 <table className="min-w-full text-sm text-left">
                                     <thead className="bg-slate-100 text-slate-700 font-bold uppercase text-xs">
-                                        <tr><th className="px-4 py-3">Thời gian</th><th className="px-4 py-3">Ngân hàng</th><th className="px-4 py-3 text-right">Số tiền rút</th><th className="px-4 py-3 text-center">Trạng thái</th></tr>
+                                            <tr><th className="px-4 py-3">Thời gian</th><th className="px-4 py-3">Ngân hàng</th><th className="px-4 py-3 text-right">Số tiền rút</th><th className="px-4 py-3 text-center">Trạng thái</th></tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-200">
-                                        {history.withdraws && history.withdraws.length > 0 ? (
-                                            history.withdraws.map(item => (
-                                                <tr key={item.id} className="bg-white hover:bg-red-50">
-                                                    <td className="px-4 py-3 text-slate-500">{new Date(item.created_at).toLocaleString('vi-VN')}</td>
-                                                    <td className="px-4 py-3"><div className="font-bold text-slate-800">{item.bank_name}</div><div className="text-xs text-slate-500 font-mono">{item.account_number}</div></td>
-                                                    <td className="px-4 py-3 text-right font-bold text-red-600">{formatCurrency(item.amount)}</td>
-                                                    <td className="px-4 py-3 text-center"><span className={`px-2 py-1 rounded text-xs font-bold ${item.status === 'completed' ? 'bg-green-100 text-green-700' : item.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>{item.status === 'completed' ? 'Thành công' : item.status === 'rejected' ? 'Hủy' : 'Đang chờ'}</span></td>
-                                                </tr>
-                                            ))
-                                        ) : (<tr><td colSpan="4" className="p-4 text-center text-slate-500">Chưa có giao dịch nào</td></tr>)}
+                                            {history.withdraws && history.withdraws.length > 0 ? (
+                                                history.withdraws.map(item => (
+                                                    <tr key={item.id} className="bg-white hover:bg-red-50">
+                                                        <td className="px-4 py-3 text-slate-500">{new Date(item.created_at).toLocaleString('vi-VN')}</td>
+                                                        <td className="px-4 py-3"><div className="font-bold text-slate-800">{item.bank_name}</div><div className="text-xs text-slate-500 font-mono">{item.account_number}</div></td>
+                                                        <td className="px-4 py-3 text-right font-bold text-red-600">{formatCurrency(item.amount)}</td>
+                                                        <td className="px-4 py-3 text-center"><span className={`px-2 py-1 rounded text-xs font-bold ${item.status === 'completed' ? 'bg-green-100 text-green-700' : item.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>{item.status === 'completed' ? 'Thành công' : item.status === 'rejected' ? 'Hủy' : 'Đang chờ'}</span></td>
+                                                    </tr>
+                                                ))
+                                            ) : (<tr><td colSpan="4" className="p-4 text-center text-slate-500">Chưa có giao dịch nào</td></tr>)}
                                     </tbody>
                                 </table>
                             </div>
