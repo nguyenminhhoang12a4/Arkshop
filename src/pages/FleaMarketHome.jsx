@@ -261,7 +261,7 @@ export default function FleaMarketHome() {
                 <ul className="list-disc list-inside space-y-2 text-gray-700">
                   <li>**Không đăng** các mặt hàng có liên quan đến **hack**.</li>
                   <li>Khi **không có gói** thì chỉ được đăng bán **thú**.</li>
-                  <li>Khi **Sở hữu gói Pass ad** (normal, silver, gold) thì chỉ được đăng bán các mặtC hàng **trong đó**.</li>
+                  <li>Khi **Sở hữu gói Pass ad** (normal, silver, gold) thì chỉ được đăng bán các mặt hàng **trong đó**.</li>
                   <li>Khi đăng món hàng mà mình không có thì bị <span className="font-bold text-red-600 uppercase">band vĩnh viễn</span>.</li>
                 </ul>
               </div>
