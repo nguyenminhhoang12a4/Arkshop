@@ -261,7 +261,6 @@ export default function CardPage() {
       } catch (err) { alert(err.message); } finally { setLoading(false); }
   };
 
-  // --- HÀM MỞ MODAL QR (Tạo Link) ---
   const openQrModal = (item) => {
       const bankId = getBankId(item.bank_name);
       const qrUrl = `https://img.vietqr.io/image/${bankId}-${item.account_number}-compact.png?amount=${item.amount}&addInfo=RUT TIEN ${item.profiles?.character_name}&accountName=${encodeURIComponent(item.account_name)}`;
@@ -269,7 +268,36 @@ export default function CardPage() {
       setQrModalOpen(true);
   };
 
-  // --- HÀM COPY ---
+  // --- 🔥 HÀM TẢI ẢNH QR MỚI 🔥 ---
+  const handleDownloadQr = async () => {
+      if (!qrData?.url) return;
+      try {
+          // Dùng fetch để lấy dữ liệu ảnh dưới dạng Blob
+          const response = await fetch(qrData.url);
+          const blob = await response.blob();
+          
+          // Tạo URL tạm thời cho Blob
+          const url = window.URL.createObjectURL(blob);
+          
+          // Tạo thẻ <a> ẩn để kích hoạt tải xuống
+          const link = document.createElement('a');
+          link.href = url;
+          // Đặt tên file có chứa số tiền để dễ quản lý
+          link.download = `QR_ChuyenKhoan_${qrData.info.amount}.png`;
+          document.body.appendChild(link);
+          
+          // Tự động click và dọn dẹp
+          link.click();
+          document.body.removeChild(link);
+          window.URL.revokeObjectURL(url);
+          
+      } catch (error) {
+          console.error('Lỗi tải ảnh:', error);
+          // Nếu lỗi (ví dụ do chặn CORS), mở ảnh ở tab mới như phương án dự phòng
+          window.open(qrData.url, '_blank');
+      }
+  };
+
   const handleCopy = (text) => {
       navigator.clipboard.writeText(text);
       alert(`Đã copy: ${text}`);
@@ -283,7 +311,7 @@ export default function CardPage() {
   return (
     <div className="font-sans text-slate-900 bg-slate-50 min-h-screen pb-20 relative"> 
       
-      {/* --- MODAL QR CODE (ĐÃ CẬP NHẬT NÚT COPY) --- */}
+      {/* --- MODAL QR CODE --- */}
       {qrModalOpen && qrData && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 animate-fade-in" onClick={() => setQrModalOpen(false)}>
             <div className="bg-white rounded-2xl max-w-md w-full overflow-hidden shadow-2xl relative" onClick={e => e.stopPropagation()}>
@@ -300,15 +328,13 @@ export default function CardPage() {
                     <div className="flex justify-center mb-6">
                         <div className="bg-white p-2 border-2 border-slate-200 rounded-xl shadow-sm">
                             <img src={qrData.url} alt="QR Code" className="w-56 h-56 object-contain" />
-                            <a 
-                                href={qrData.url} 
-                                download="qr-code.png" 
-                                target="_blank" 
-                                rel="noreferrer"
-                                className="block text-center mt-2 text-xs font-bold text-blue-600 hover:underline flex items-center justify-center gap-1"
+                            {/* 🔥 NÚT TẢI ẢNH ĐÃ CẬP NHẬT 🔥 */}
+                            <button 
+                                onClick={handleDownloadQr}
+                                className="w-full mt-2 text-xs font-bold text-blue-600 hover:underline flex items-center justify-center gap-1 py-1 hover:bg-blue-50 rounded"
                             >
-                                <ArrowDownTrayIcon className="w-3 h-3" /> Tải ảnh QR
-                            </a>
+                                <ArrowDownTrayIcon className="w-3 h-3" /> Tải ảnh QR về máy
+                            </button>
                         </div>
                     </div>
 
