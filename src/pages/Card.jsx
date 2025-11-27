@@ -4,10 +4,10 @@ import { supabase } from '../services/supabaseClient';
 import { 
     BanknotesIcon, ClockIcon, CreditCardIcon, 
     CalculatorIcon, ClipboardDocumentIcon, PlusCircleIcon, TrashIcon,
-    CheckCircleIcon, XCircleIcon, ArrowPathIcon
+    CheckCircleIcon, XCircleIcon, ArrowPathIcon, UserGroupIcon, MagnifyingGlassIcon
 } from '@heroicons/react/24/solid';
 
-// Danh sách ngân hàng & Ví điện tử
+// Danh sách ngân hàng & Ví điện tử (Giữ nguyên)
 const BANK_LIST = [
     "Ngân hàng Vietcombank", "Ngân hàng BIDV", "Ngân hàng VIETINBANK", "Ngân hàng AGRIBANK",
     "Ngân hàng SACOMBANK", "Ngân hàng TECHCOMBANK", "Ngân hàng MBBANK", "Ngân hàng VPBANK",
@@ -29,9 +29,9 @@ export default function CardPage() {
   const [balance, setBalance] = useState(0);
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState(null);
+  const [profile, setProfile] = useState(null); // Để check quyền Admin
 
-  // --- STATE MỚI: QUẢN LÝ DANH SÁCH THẺ ---
-  // Mỗi thẻ là một object có id riêng để quản lý trạng thái
+  // State Nạp thẻ
   const [cardsList, setCardsList] = useState([
     { id: 1, telco: 'VIETTEL', amount: '10000', code: '', serial: '', status: 'idle', msg: '' }
   ]);
@@ -42,22 +42,35 @@ export default function CardPage() {
   // State lịch sử
   const [history, setHistory] = useState({ cards: [], withdraws: [] });
 
+  // --- STATE CHO ADMIN QUẢN LÝ TIỀN ---
+  const [adminSearchTerm, setAdminSearchTerm] = useState('');
+  const [adminUserList, setAdminUserList] = useState([]);
+  const [editingUserId, setEditingUserId] = useState(null);
+  const [newBalanceValue, setNewBalanceValue] = useState('');
+  const [page, setPage] = useState(1);
+  const ITEMS_PER_PAGE = 20;
+  const [hasMore, setHasMore] = useState(true);
+
   useEffect(() => {
     fetchUserAndBalance();
   }, []);
 
   useEffect(() => {
-    if (user && activeTab === 'history') {
-        fetchHistory();
+    if (user) {
+        if (activeTab === 'history') fetchHistory();
+        if (activeTab === 'admin_money' && profile?.role === 'admin') handleSearchUsers(1);
     }
-  }, [activeTab, user]);
+  }, [activeTab, user, profile]);
 
   const fetchUserAndBalance = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       setUser(user);
-      const { data } = await supabase.from('profiles').select('balance').eq('id', user.id).single();
-      if (data) setBalance(data.balance);
+      const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+      if (data) {
+          setBalance(data.balance);
+          setProfile(data); // Lưu profile để check role
+      }
     }
   };
 
@@ -71,17 +84,13 @@ export default function CardPage() {
     }
   };
 
-  // --- CÁC HÀM QUẢN LÝ DANH SÁCH THẺ (Thêm/Sửa/Xóa) ---
-
+  // --- CÁC HÀM QUẢN LÝ DANH SÁCH THẺ (Giữ nguyên) ---
   const addCardRow = () => {
-    setCardsList([...cardsList, { 
-        id: Date.now(), // Tạo ID ngẫu nhiên
-        telco: 'VIETTEL', amount: '10000', code: '', serial: '', status: 'idle', msg: '' 
-    }]);
+    setCardsList([...cardsList, { id: Date.now(), telco: 'VIETTEL', amount: '10000', code: '', serial: '', status: 'idle', msg: '' }]);
   };
 
   const removeCardRow = (index) => {
-    if (cardsList.length === 1) return; // Giữ lại ít nhất 1 dòng
+    if (cardsList.length === 1) return;
     const newList = [...cardsList];
     newList.splice(index, 1);
     setCardsList(newList);
@@ -90,7 +99,6 @@ export default function CardPage() {
   const updateCardRow = (index, field, value) => {
     const newList = [...cardsList];
     newList[index][field] = value;
-    // Reset trạng thái nếu người dùng sửa lại
     if (field === 'code' || field === 'serial') {
         newList[index].status = 'idle';
         newList[index].msg = '';
@@ -107,52 +115,31 @@ export default function CardPage() {
     }
   };
 
-  // --- XỬ LÝ GỬI NHIỀU THẺ (Bulk Submit) ---
   const handleBulkSubmit = async (e) => {
     e.preventDefault();
-
     if (!user) {
         const confirmLogin = confirm("Bạn cần đăng nhập để nạp thẻ. Đăng nhập ngay?");
         if (confirmLogin) navigate('/login');
         return; 
     }
-
-    // Kiểm tra xem có thẻ nào chưa nhập đủ không
     const isValid = cardsList.every(card => card.code && card.serial);
-    if (!isValid) {
-        alert("Vui lòng nhập đầy đủ Mã thẻ và Serial cho tất cả các dòng.");
-        return;
-    }
+    if (!isValid) { alert("Vui lòng nhập đầy đủ Mã thẻ và Serial."); return; }
 
     setLoading(true);
-
-    // Duyệt qua từng thẻ và gửi đi
     let successCount = 0;
     let currentList = [...cardsList];
 
     for (let i = 0; i < currentList.length; i++) {
         const card = currentList[i];
-
-        // Chỉ xử lý những thẻ chưa thành công
         if (card.status === 'success') continue;
-
-        // Cập nhật trạng thái đang chạy
         currentList[i].status = 'processing';
-        setCardsList([...currentList]); // Update UI ngay lập tức
+        setCardsList([...currentList]);
 
         try {
             const { data, error } = await supabase.functions.invoke('card-proxy', {
-                body: { 
-                    telco: card.telco, 
-                    amount: card.amount, 
-                    code: card.code, 
-                    serial: card.serial, 
-                    user_id: user.id 
-                }
+                body: { telco: card.telco, amount: card.amount, code: card.code, serial: card.serial, user_id: user.id }
             });
-
             if (error) throw error;
-
             if (data.status == 99) {
                 currentList[i].status = 'success';
                 currentList[i].msg = 'Đã gửi thành công';
@@ -165,23 +152,20 @@ export default function CardPage() {
             currentList[i].status = 'error';
             currentList[i].msg = err.message;
         }
-
-        // Update UI sau mỗi lần lặp
         setCardsList([...currentList]);
     }
-
     setLoading(false);
     if (successCount > 0) {
         alert(`Đã gửi thành công ${successCount} thẻ! Vui lòng chờ hệ thống duyệt.`);
+        fetchUserAndBalance(); // Cập nhật lại số dư nếu có thẻ đúng ngay lập tức (hiếm)
     }
   };
 
-  // Nút Reset form
   const resetForm = () => {
     setCardsList([{ id: Date.now(), telco: 'VIETTEL', amount: '10000', code: '', serial: '', status: 'idle', msg: '' }]);
   };
 
-  // --- XỬ LÝ RÚT TIỀN ---
+  // --- XỬ LÝ RÚT TIỀN (Giữ nguyên) ---
   const handleWithdrawSubmit = async (e) => {
     e.preventDefault();
     if (!user) { alert("Bạn cần đăng nhập."); navigate('/login'); return; }
@@ -210,6 +194,62 @@ export default function CardPage() {
     }
   };
 
+  // --- ADMIN: TÌM KIẾM & PHÂN TRANG ---
+  const handleSearchUsers = async (pageNumber = 1) => {
+    if (profile?.role !== 'admin') return;
+    setLoading(true);
+    setPage(pageNumber);
+
+    try {
+      const from = (pageNumber - 1) * ITEMS_PER_PAGE;
+      const to = from + ITEMS_PER_PAGE - 1;
+
+      let query = supabase
+        .from('profiles')
+        .select('*', { count: 'exact' })
+        .order('balance', { ascending: false }) // Sắp xếp theo TIỀN giảm dần
+        .range(from, to);
+
+      if (adminSearchTerm.trim()) {
+        query = query.or(`character_name.ilike.%${adminSearchTerm}%,email.ilike.%${adminSearchTerm}%,zalo_contact.ilike.%${adminSearchTerm}%`);
+      }
+
+      const { data, error, count } = await query;
+      if (error) throw error;
+      
+      setAdminUserList(data || []);
+      setHasMore(count > to + 1);
+    } catch (error) {
+      alert("Lỗi tải danh sách: " + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // --- ADMIN: CẬP NHẬT SỐ DƯ (BẢO MẬT) ---
+  const handleAdminUpdateBalance = async (userId) => {
+    if (newBalanceValue === '') return;
+    const confirmUpdate = window.confirm(`Bạn có chắc chắn muốn set số dư của user này thành ${formatCurrency(newBalanceValue)} không?`);
+    if (!confirmUpdate) return;
+
+    try {
+        // Gọi hàm RPC bảo mật thay vì update trực tiếp
+        const { error } = await supabase.rpc('admin_update_balance', {
+            p_user_id: userId,
+            p_new_balance: parseInt(newBalanceValue)
+        });
+
+        if (error) throw error;
+
+        alert("✅ Đã cập nhật số dư thành công!");
+        setEditingUserId(null);
+        handleSearchUsers(page); // Load lại danh sách
+
+    } catch (error) {
+        alert("Lỗi cập nhật: " + error.message);
+    }
+  };
+
   const formatCurrency = (num) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(num);
   const withdrawFee = 2000;
   const inputAmount = parseInt(withdrawForm.amount) || 0;
@@ -233,6 +273,7 @@ export default function CardPage() {
                    <div className="text-sm">
                         <p className="text-blue-200 text-xs">Tài khoản</p>
                         <p className="font-mono font-bold">{user ? user.email : 'Chưa đăng nhập'}</p>
+                        {profile?.role === 'admin' && <span className="text-yellow-300 font-bold text-xs uppercase border border-yellow-300 px-1 rounded ml-1">Admin</span>}
                    </div>
                 </div>
             </div>
@@ -242,7 +283,7 @@ export default function CardPage() {
         <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-slate-200">
             
             {/* Tabs Navigation */}
-            <div className="grid grid-cols-3 border-b-2 border-slate-100">
+            <div className="grid grid-cols-3 sm:grid-cols-4 border-b-2 border-slate-100">
                 {['deposit', 'withdraw', 'history'].map((tab) => (
                     <button 
                         key={tab}
@@ -260,13 +301,27 @@ export default function CardPage() {
                         </span>
                     </button>
                 ))}
+                
+                {/* TAB ADMIN RIÊNG BIỆT */}
+                {profile?.role === 'admin' && (
+                    <button 
+                        onClick={() => setActiveTab('admin_money')} 
+                        className={`py-4 font-bold text-xs sm:text-sm uppercase tracking-wider transition-all flex items-center justify-center gap-2
+                            ${activeTab === 'admin_money' 
+                                ? 'bg-red-50 text-red-700 border-b-4 border-red-700 shadow-inner' 
+                                : 'bg-slate-50 text-slate-500 hover:bg-red-50 hover:text-red-600'}`}
+                    >
+                        <UserGroupIcon className="w-5 h-5" />
+                        <span className="hidden sm:inline">Quản Lý</span>
+                    </button>
+                )}
             </div>
 
             <div className="p-4 sm:p-8 bg-white">
-                {/* --- TAB NẠP THẺ (MULTI CARD) --- */}
+                
+                {/* --- TAB NẠP THẺ --- */}
                 {activeTab === 'deposit' && (
                     <div className="animate-fade-in">
-                        {/* Bảng thông báo chiết khấu */}
                         <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4 text-yellow-800 text-sm rounded-r-lg mb-6">
                             <div className="flex flex-col sm:flex-row sm:gap-8 font-medium">
                                 <span>⚡ Garena: <span className="font-bold text-green-600">15%</span></span>
@@ -275,7 +330,6 @@ export default function CardPage() {
                             <div className="mt-1 text-red-600 italic text-xs font-bold">* Lưu ý: Chọn sai mệnh giá sẽ bị phạt theo quy định.</div>
                         </div>
 
-                        {/* --- DANH SÁCH THẺ NHẬP --- */}
                         <div className="space-y-4">
                             {cardsList.map((card, index) => (
                                 <div key={card.id} className={`relative p-4 rounded-xl border-2 transition-all ${
@@ -284,7 +338,6 @@ export default function CardPage() {
                                     card.status === 'error' ? 'border-red-300 bg-red-50' :
                                     'border-slate-100 bg-white hover:border-blue-200'
                                 }`}>
-                                    {/* Header dòng: Số thứ tự + Nút xóa */}
                                     <div className="flex justify-between items-center mb-2">
                                         <span className="text-xs font-bold text-slate-400 uppercase">Thẻ #{index + 1}</span>
                                         {cardsList.length > 1 && (
@@ -294,9 +347,7 @@ export default function CardPage() {
                                         )}
                                     </div>
 
-                                    {/* Grid Input */}
                                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                                        {/* 1. Loại thẻ */}
                                         <select 
                                             className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg font-semibold text-slate-700 focus:border-blue-500 outline-none"
                                             value={card.telco} 
@@ -310,7 +361,6 @@ export default function CardPage() {
                                             <option value="GATE">Gate</option>
                                         </select>
 
-                                        {/* 2. Mệnh giá */}
                                         <select 
                                             className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg font-semibold text-slate-700 focus:border-blue-500 outline-none"
                                             value={card.amount} 
@@ -325,7 +375,6 @@ export default function CardPage() {
                                             <option value="500000">500.000 đ</option>
                                         </select>
 
-                                        {/* 3. Mã thẻ */}
                                         <div className="relative">
                                             <input 
                                                 type="text" placeholder="Mã thẻ" 
@@ -339,7 +388,6 @@ export default function CardPage() {
                                             </button>
                                         </div>
 
-                                        {/* 4. Serial */}
                                         <div className="relative">
                                             <input 
                                                 type="text" placeholder="Serial" 
@@ -354,7 +402,6 @@ export default function CardPage() {
                                         </div>
                                     </div>
 
-                                    {/* Thông báo trạng thái từng dòng */}
                                     {card.msg && (
                                         <div className={`mt-2 text-xs font-bold flex items-center gap-1 ${
                                             card.status === 'success' ? 'text-green-600' : 
@@ -370,32 +417,16 @@ export default function CardPage() {
                             ))}
                         </div>
 
-                        {/* --- BUTTONS ACTION --- */}
                         <div className="mt-6 flex flex-col sm:flex-row gap-3">
-                            <button 
-                                type="button" 
-                                onClick={addCardRow}
-                                className="flex-1 py-3 border-2 border-dashed border-blue-300 text-blue-600 rounded-xl font-bold hover:bg-blue-50 transition-colors flex items-center justify-center gap-2"
-                            >
-                                <PlusCircleIcon className="w-6 h-6" />
-                                THÊM DÒNG
+                            <button type="button" onClick={addCardRow} className="flex-1 py-3 border-2 border-dashed border-blue-300 text-blue-600 rounded-xl font-bold hover:bg-blue-50 transition-colors flex items-center justify-center gap-2">
+                                <PlusCircleIcon className="w-6 h-6" /> THÊM DÒNG
                             </button>
-
                             {cardsList.some(c => c.status === 'success' || c.status === 'error') && (
-                                <button 
-                                    type="button" 
-                                    onClick={resetForm}
-                                    className="px-6 py-3 bg-gray-200 text-gray-700 rounded-xl font-bold hover:bg-gray-300 transition-colors"
-                                >
+                                <button type="button" onClick={resetForm} className="px-6 py-3 bg-gray-200 text-gray-700 rounded-xl font-bold hover:bg-gray-300 transition-colors">
                                     LÀM MỚI
                                 </button>
                             )}
-
-                            <button 
-                                onClick={handleBulkSubmit}
-                                disabled={loading} 
-                                className="flex-[2] py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg hover:bg-blue-700 transition-transform active:scale-95 disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2"
-                            >
+                            <button onClick={handleBulkSubmit} disabled={loading} className="flex-[2] py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg hover:bg-blue-700 transition-transform active:scale-95 disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2">
                                 {loading ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : 'GỬI TẤT CẢ'}
                             </button>
                         </div>
@@ -414,43 +445,26 @@ export default function CardPage() {
                              <div>
                                 <label className="block text-sm font-bold text-slate-700 mb-1 uppercase">Ngân hàng thụ hưởng</label>
                                 <div className="relative">
-                                    <select 
-                                        required 
-                                        className="w-full p-3 border border-slate-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none text-slate-900 appearance-none bg-white" 
-                                        value={withdrawForm.bank_name} 
-                                        onChange={e => setWithdrawForm({...withdrawForm, bank_name: e.target.value})}
-                                    >
+                                    <select required className="w-full p-3 border border-slate-300 rounded-lg focus:border-blue-500 outline-none text-slate-900 appearance-none bg-white" value={withdrawForm.bank_name} onChange={e => setWithdrawForm({...withdrawForm, bank_name: e.target.value})}>
                                         <option value="">-- Chọn Ngân hàng / Ví --</option>
-                                        {BANK_LIST.map((bank, index) => (
-                                            <option key={index} value={bank}>{bank}</option>
-                                        ))}
+                                        {BANK_LIST.map((bank, index) => <option key={index} value={bank}>{bank}</option>)}
                                     </select>
-                                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                                        </svg>
-                                    </div>
                                 </div>
                              </div>
-
                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-bold text-slate-700 mb-1 uppercase">Số tài khoản</label>
-                                    <input type="text" placeholder="Số TK..." required className="w-full p-3 border border-slate-300 rounded-lg focus:border-blue-500 outline-none font-mono text-slate-900" 
-                                        value={withdrawForm.account_number} onChange={e => setWithdrawForm({...withdrawForm, account_number: e.target.value})} />
+                                    <input type="text" placeholder="Số TK..." required className="w-full p-3 border border-slate-300 rounded-lg focus:border-blue-500 outline-none font-mono text-slate-900" value={withdrawForm.account_number} onChange={e => setWithdrawForm({...withdrawForm, account_number: e.target.value})} />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-bold text-slate-700 mb-1 uppercase">Chủ tài khoản</label>
-                                    <input type="text" placeholder="TÊN IN HOA..." required className="w-full p-3 border border-slate-300 rounded-lg focus:border-blue-500 outline-none text-slate-900 uppercase" 
-                                        value={withdrawForm.account_name} onChange={e => setWithdrawForm({...withdrawForm, account_name: e.target.value.toUpperCase()})} />
+                                    <input type="text" placeholder="TÊN IN HOA..." required className="w-full p-3 border border-slate-300 rounded-lg focus:border-blue-500 outline-none text-slate-900 uppercase" value={withdrawForm.account_name} onChange={e => setWithdrawForm({...withdrawForm, account_name: e.target.value.toUpperCase()})} />
                                 </div>
-                            </div>
-
+                             </div>
                              <div>
                                 <label className="block text-sm font-bold text-slate-700 mb-1 uppercase">Số tiền muốn rút (Từ ví)</label>
                                 <div className="relative">
-                                    <input type="number" placeholder="Nhập số tiền..." required className="w-full p-3 pr-16 border border-slate-300 rounded-lg focus:border-blue-500 outline-none text-xl font-bold text-red-600" 
-                                        value={withdrawForm.amount} onChange={e => setWithdrawForm({...withdrawForm, amount: e.target.value})} />
+                                    <input type="number" placeholder="Nhập số tiền..." required className="w-full p-3 pr-16 border border-slate-300 rounded-lg focus:border-blue-500 outline-none text-xl font-bold text-red-600" value={withdrawForm.amount} onChange={e => setWithdrawForm({...withdrawForm, amount: e.target.value})} />
                                     <span className="absolute right-4 top-1/2 -translate-y-1/2 font-bold text-slate-500 text-sm">VNĐ</span>
                                 </div>
                                 {inputAmount > 0 && (
@@ -458,9 +472,9 @@ export default function CardPage() {
                                         <div className="flex justify-between items-center text-sm text-slate-500 mb-1"><span>Số tiền rút:</span><span className="font-medium">{formatCurrency(inputAmount)}</span></div>
                                         <div className="flex justify-between items-center text-sm text-slate-500 mb-2 border-b border-slate-200 pb-2"><span>Phí giao dịch:</span><span className="font-medium text-red-500">-{formatCurrency(withdrawFee)}</span></div>
                                         <div className="flex justify-between items-center"><span className="font-bold text-slate-800 uppercase flex items-center gap-1"><CalculatorIcon className="w-4 h-4" />Thực nhận:</span><span className="font-extrabold text-xl text-green-600">{formatCurrency(realReceived)}</span></div>
-                                    </div>
+                                     </div>
                                 )}
-                            </div>
+                             </div>
                         </div>
                         <button disabled={loading} className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-lg shadow-lg text-lg transition-transform active:scale-95 mt-4">
                             {loading ? 'ĐANG TẠO LỆNH...' : 'XÁC NHẬN RÚT TIỀN'}
@@ -468,10 +482,9 @@ export default function CardPage() {
                     </form>
                 )}
 
-                {/* --- TAB LỊCH SỬ MỚI --- */}
+                {/* --- TAB LỊCH SỬ --- */}
                 {activeTab === 'history' && (
                     <div className="space-y-8 animate-fade-in">
-                        {/* Bảng Nạp Thẻ */}
                         <div>
                             <h3 className="font-bold text-lg text-blue-800 border-l-4 border-blue-600 pl-3 mb-4">Lịch Sử Nạp Thẻ</h3>
                             <div className="overflow-x-auto border border-slate-200 rounded-lg shadow-sm">
@@ -480,7 +493,7 @@ export default function CardPage() {
                                         <tr>
                                             <th className="px-4 py-3 whitespace-nowrap">Thời gian</th>
                                             <th className="px-4 py-3 whitespace-nowrap">Nhà mạng</th>
-                                            <th className="px-4 py-3 whitespace-nowrap">Thông tin thẻ</th> {/* Cột Mới */}
+                                            <th className="px-4 py-3 whitespace-nowrap">Thông tin thẻ</th>
                                             <th className="px-4 py-3 text-right whitespace-nowrap">Mệnh giá</th>
                                             <th className="px-4 py-3 text-right whitespace-nowrap">Thực nhận</th>
                                             <th className="px-4 py-3 text-center whitespace-nowrap">Trạng thái</th>
@@ -490,113 +503,113 @@ export default function CardPage() {
                                         {history.cards && history.cards.length > 0 ? (
                                             history.cards.map(item => (
                                                 <tr key={item.id} className="bg-white hover:bg-blue-50 transition-colors">
-                                                    {/* 1. Thời gian */}
-                                                    <td className="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">
-                                                        {new Date(item.created_at).toLocaleString('vi-VN')}
-                                                    </td>
-
-                                                    {/* 2. Nhà mạng */}
-                                                    <td className="px-4 py-3">
-                                                        <span className="font-bold text-blue-700 bg-blue-50 px-2 py-1 rounded border border-blue-100 text-xs">
-                                                            {item.telco}
-                                                        </span>
-                                                    </td>
-
-                                                    {/* 3. Thông tin thẻ (Mới thêm Mã & Seri) */}
+                                                    <td className="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">{new Date(item.created_at).toLocaleString('vi-VN')}</td>
+                                                    <td className="px-4 py-3"><span className="font-bold text-blue-700 bg-blue-50 px-2 py-1 rounded border border-blue-100 text-xs">{item.telco}</span></td>
                                                     <td className="px-4 py-3">
                                                         <div className="flex flex-col gap-1">
-                                                            <div className="text-xs text-slate-600">
-                                                                <span className="font-semibold text-slate-400 inline-block w-10">Mã:</span> 
-                                                                <span className="font-mono font-medium select-all">{item.code}</span>
-                                                            </div>
-                                                            <div className="text-xs text-slate-600">
-                                                                <span className="font-semibold text-slate-400 inline-block w-10">Seri:</span> 
-                                                                <span className="font-mono font-medium select-all">{item.serial}</span>
-                                                            </div>
+                                                            <div className="text-xs text-slate-600"><span className="font-semibold text-slate-400 inline-block w-10">Mã:</span> <span className="font-mono font-medium select-all">{item.code}</span></div>
+                                                            <div className="text-xs text-slate-600"><span className="font-semibold text-slate-400 inline-block w-10">Seri:</span> <span className="font-mono font-medium select-all">{item.serial}</span></div>
                                                         </div>
                                                     </td>
-
-                                                    {/* 4. Mệnh giá */}
-                                                    <td className="px-4 py-3 text-right font-medium text-slate-600 whitespace-nowrap">
-                                                        {formatCurrency(item.declared_amount)}
-                                                    </td>
-
-                                                    {/* 5. Thực nhận */}
-                                                    <td className="px-4 py-3 text-right whitespace-nowrap">
-                                                        {item.received_amount > 0 ? (
-                                                            <span className="font-bold text-green-600">+{formatCurrency(item.received_amount)}</span>
-                                                        ) : (
-                                                            <span className="text-slate-300">-</span>
-                                                        )}
-                                                    </td>
-
-                                                    {/* 6. Trạng thái */}
+                                                    <td className="px-4 py-3 text-right font-medium text-slate-600 whitespace-nowrap">{formatCurrency(item.declared_amount)}</td>
+                                                    <td className="px-4 py-3 text-right whitespace-nowrap">{item.received_amount > 0 ? <span className="font-bold text-green-600">+{formatCurrency(item.received_amount)}</span> : <span className="text-slate-300">-</span>}</td>
                                                     <td className="px-4 py-3 text-center align-middle whitespace-nowrap">
-                                                        {item.status === 'success' && (
-                                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
-                                                                ✅ Thẻ đúng
-                                                            </span>
-                                                        )}
-                                                        {item.status === 'pending' && (
-                                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200 animate-pulse">
-                                                                ⏳ Đang xử lý...
-                                                            </span>
-                                                        )}
-                                                        {item.status === 'wrong_amount' && (
-                                                            <div className="flex flex-col items-center">
-                                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 border border-yellow-200">
-                                                                    ⚠️ Sai mệnh giá
-                                                                </span>
-                                                                <span className="text-[10px] text-yellow-600 mt-1">Phạt còn 1.000đ</span>
-                                                            </div>
-                                                        )}
-                                                        {item.status === 'failed' && (
-                                                            <div className="flex flex-col items-center">
-                                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-200">
-                                                                    ❌ Thất bại
-                                                                </span>
-                                                                <span className="text-[10px] text-red-500 mt-1 max-w-[150px] truncate" title={item.message}>
-                                                                    {item.message || 'Thẻ sai/Đã dùng'}
-                                                                </span>
-                                                            </div>
-                                                        )}
+                                                        {item.status === 'success' && <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">✅ Thẻ đúng</span>}
+                                                        {item.status === 'pending' && <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200 animate-pulse">⏳ Đang xử lý...</span>}
+                                                        {item.status === 'wrong_amount' && <div className="flex flex-col items-center"><span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 border border-yellow-200">⚠️ Sai mệnh giá</span><span className="text-[10px] text-yellow-600 mt-1">Phạt còn 1.000đ</span></div>}
+                                                        {item.status === 'failed' && <div className="flex flex-col items-center"><span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-200">❌ Thất bại</span><span className="text-[10px] text-red-500 mt-1 max-w-[150px] truncate" title={item.message}>{item.message || 'Thẻ sai/Đã dùng'}</span></div>}
                                                     </td>
                                                 </tr>
                                             ))
-                                        ) : (
-                                            <tr>
-                                                <td colSpan="6" className="p-8 text-center text-slate-500 italic">
-                                                    Chưa có giao dịch nào
-                                                </td>
-                                            </tr>
-                                        )}
+                                        ) : (<tr><td colSpan="6" className="p-8 text-center text-slate-500 italic">Chưa có giao dịch nào</td></tr>)}
                                     </tbody>
                                 </table>
                             </div>
                         </div>
-                        {/* Bảng Rút Tiền */}
                         <div>
                             <h3 className="font-bold text-lg text-red-800 border-l-4 border-red-600 pl-3 mb-4">Lịch Sử Rút Tiền</h3>
                             <div className="overflow-x-auto border border-slate-200 rounded-lg">
                                 <table className="min-w-full text-sm text-left">
-                                    <thead className="bg-slate-100 text-slate-700 font-bold uppercase text-xs">
-                                            <tr><th className="px-4 py-3">Thời gian</th><th className="px-4 py-3">Ngân hàng</th><th className="px-4 py-3 text-right">Số tiền rút</th><th className="px-4 py-3 text-center">Trạng thái</th></tr>
-                                    </thead>
+                                    <thead className="bg-slate-100 text-slate-700 font-bold uppercase text-xs"><tr><th className="px-4 py-3">Thời gian</th><th className="px-4 py-3">Ngân hàng</th><th className="px-4 py-3 text-right">Số tiền rút</th><th className="px-4 py-3 text-center">Trạng thái</th></tr></thead>
                                     <tbody className="divide-y divide-slate-200">
-                                            {history.withdraws && history.withdraws.length > 0 ? (
-                                                history.withdraws.map(item => (
-                                                    <tr key={item.id} className="bg-white hover:bg-red-50">
-                                                        <td className="px-4 py-3 text-slate-500">{new Date(item.created_at).toLocaleString('vi-VN')}</td>
-                                                        <td className="px-4 py-3"><div className="font-bold text-slate-800">{item.bank_name}</div><div className="text-xs text-slate-500 font-mono">{item.account_number}</div></td>
-                                                        <td className="px-4 py-3 text-right font-bold text-red-600">{formatCurrency(item.amount)}</td>
-                                                        <td className="px-4 py-3 text-center"><span className={`px-2 py-1 rounded text-xs font-bold ${item.status === 'completed' ? 'bg-green-100 text-green-700' : item.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>{item.status === 'completed' ? 'Thành công' : item.status === 'rejected' ? 'Hủy' : 'Đang chờ'}</span></td>
-                                                    </tr>
-                                                ))
-                                            ) : (<tr><td colSpan="4" className="p-4 text-center text-slate-500">Chưa có giao dịch nào</td></tr>)}
+                                        {history.withdraws && history.withdraws.length > 0 ? (
+                                            history.withdraws.map(item => (
+                                                <tr key={item.id} className="bg-white hover:bg-red-50"><td className="px-4 py-3 text-slate-500">{new Date(item.created_at).toLocaleString('vi-VN')}</td><td className="px-4 py-3"><div className="font-bold text-slate-800">{item.bank_name}</div><div className="text-xs text-slate-500 font-mono">{item.account_number}</div></td><td className="px-4 py-3 text-right font-bold text-red-600">{formatCurrency(item.amount)}</td><td className="px-4 py-3 text-center"><span className={`px-2 py-1 rounded text-xs font-bold ${item.status === 'completed' ? 'bg-green-100 text-green-700' : item.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>{item.status === 'completed' ? 'Thành công' : item.status === 'rejected' ? 'Hủy' : 'Đang chờ'}</span></td></tr>
+                                            ))
+                                        ) : (<tr><td colSpan="4" className="p-4 text-center text-slate-500">Chưa có giao dịch nào</td></tr>)}
                                     </tbody>
                                 </table>
                             </div>
                         </div>
+                    </div>
+                )}
+
+                {/* --- TAB QUẢN LÝ TIỀN (ADMIN ONLY) --- */}
+                {activeTab === 'admin_money' && profile?.role === 'admin' && (
+                    <div className="animate-fade-in space-y-6">
+                        <div className="flex flex-col sm:flex-row gap-2 mb-4">
+                            <div className="relative flex-1">
+                                <MagnifyingGlassIcon className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                <input 
+                                    type="text" placeholder="Tìm tên, email..." 
+                                    className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg focus:border-red-500 focus:ring-1 focus:ring-red-500 outline-none"
+                                    value={adminSearchTerm}
+                                    onChange={(e) => setAdminSearchTerm(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleSearchUsers(1)}
+                                />
+                            </div>
+                            <button onClick={() => handleSearchUsers(1)} className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-bold">Tìm Kiếm</button>
+                        </div>
+
+                        <div className="border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm">
+                            <div className="grid grid-cols-12 bg-slate-100 p-3 text-xs sm:text-sm font-bold text-slate-700 uppercase">
+                                <div className="col-span-5">Người chơi</div>
+                                <div className="col-span-4 text-center">Số dư (VNĐ)</div>
+                                <div className="col-span-3 text-right">Thao tác</div>
+                            </div>
+                            <div className="max-h-[500px] overflow-y-auto custom-scrollbar divide-y divide-slate-100">
+                                {adminUserList.length > 0 ? (
+                                    adminUserList.map((u, idx) => (
+                                        <div key={u.id} className="grid grid-cols-12 p-3 items-center hover:bg-slate-50">
+                                            <div className="col-span-5 pr-2">
+                                                <div className="font-bold text-slate-800 truncate">{idx + 1}. {u.character_name}</div>
+                                                <div className="text-xs text-slate-500 truncate">{u.email}</div>
+                                            </div>
+                                            <div className="col-span-4 text-center">
+                                                {editingUserId === u.id ? (
+                                                    <input 
+                                                        type="number" autoFocus
+                                                        className="w-full border border-blue-500 rounded p-1 text-center font-bold text-blue-700 bg-white"
+                                                        value={newBalanceValue} onChange={(e) => setNewBalanceValue(e.target.value)}
+                                                    />
+                                                ) : (
+                                                    <span className="font-mono font-bold text-green-600">{formatCurrency(u.balance)}</span>
+                                                )}
+                                            </div>
+                                            <div className="col-span-3 text-right">
+                                                {editingUserId === u.id ? (
+                                                    <div className="flex gap-1 justify-end">
+                                                        <button onClick={() => handleAdminUpdateBalance(u.id)} className="bg-green-600 text-white px-2 py-1 rounded text-xs">Lưu</button>
+                                                        <button onClick={() => setEditingUserId(null)} className="bg-gray-400 text-white px-2 py-1 rounded text-xs">Hủy</button>
+                                                    </div>
+                                                ) : (
+                                                    <button onClick={() => { setEditingUserId(u.id); setNewBalanceValue(u.balance); }} className="bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700">Sửa</button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : <div className="p-8 text-center text-slate-500 italic">Không tìm thấy dữ liệu.</div>}
+                            </div>
+                        </div>
+
+                        {/* Phân trang Admin */}
+                        {adminUserList.length > 0 && (
+                            <div className="flex justify-center items-center gap-4 mt-4">
+                                <button onClick={() => handleSearchUsers(page - 1)} disabled={page === 1 || loading} className={`px-3 py-1 rounded text-sm font-bold ${page === 1 ? 'bg-slate-200 text-slate-400' : 'bg-white border hover:bg-slate-50'}`}>← Trước</button>
+                                <span className="text-sm font-bold text-slate-600">Trang {page}</span>
+                                <button onClick={() => handleSearchUsers(page + 1)} disabled={!hasMore || loading} className={`px-3 py-1 rounded text-sm font-bold ${!hasMore ? 'bg-slate-200 text-slate-400' : 'bg-white border hover:bg-slate-50'}`}>Sau →</button>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
@@ -604,10 +617,7 @@ export default function CardPage() {
       </div>
       <style>{`
         .animate-fade-in { animation: fadeIn 0.3s ease-in-out; }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-5px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
       `}</style>
     </div>
   );
