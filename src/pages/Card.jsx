@@ -111,6 +111,8 @@ export default function CardPage() {
   // --- STATE MODAL QR CODE ---
   const [qrModalOpen, setQrModalOpen] = useState(false);
   const [qrData, setQrData] = useState(null);
+  // 🔥 State mới: quản lý trạng thái đang tải ảnh
+  const [isDownloadingQr, setIsDownloadingQr] = useState(false);
 
   useEffect(() => {
     fetchUserAndBalance();
@@ -268,33 +270,44 @@ export default function CardPage() {
       setQrModalOpen(true);
   };
 
-  // --- 🔥 HÀM TẢI ẢNH QR MỚI 🔥 ---
+  // --- 🔥 HÀM TẢI ẢNH QR (ĐÃ NÂNG CẤP CHO MOBILE) 🔥 ---
   const handleDownloadQr = async () => {
       if (!qrData?.url) return;
+      setIsDownloadingQr(true);
+
       try {
-          // Dùng fetch để lấy dữ liệu ảnh dưới dạng Blob
+          // Bước 1: Thử fetch ảnh về dạng blob
           const response = await fetch(qrData.url);
+          if (!response.ok) throw new Error('Network error');
           const blob = await response.blob();
           
-          // Tạo URL tạm thời cho Blob
+          // Bước 2: Tạo URL object
           const url = window.URL.createObjectURL(blob);
-          
-          // Tạo thẻ <a> ẩn để kích hoạt tải xuống
           const link = document.createElement('a');
           link.href = url;
-          // Đặt tên file có chứa số tiền để dễ quản lý
           link.download = `QR_ChuyenKhoan_${qrData.info.amount}.png`;
           document.body.appendChild(link);
           
-          // Tự động click và dọn dẹp
+          // Bước 3: Kích hoạt tải xuống
           link.click();
+          
+          // Dọn dẹp
           document.body.removeChild(link);
           window.URL.revokeObjectURL(url);
           
       } catch (error) {
-          console.error('Lỗi tải ảnh:', error);
-          // Nếu lỗi (ví dụ do chặn CORS), mở ảnh ở tab mới như phương án dự phòng
-          window.open(qrData.url, '_blank');
+          console.error('Lỗi tải ảnh tự động:', error);
+          
+          // 🔥 FALLBACK CHO MOBILE (iOS/Android chặn download trực tiếp) 🔥
+          // Mở ảnh trong tab mới để người dùng có thể nhấn giữ -> Lưu ảnh
+          const win = window.open(qrData.url, '_blank');
+          if (win) {
+              alert("Trên điện thoại: Hãy NHẤN GIỮ vào ảnh QR đang mở để chọn 'Lưu vào Ảnh' nhé!");
+          } else {
+              alert("Vui lòng cho phép mở cửa sổ bật lên (Popup) để xem ảnh QR.");
+          }
+      } finally {
+          setIsDownloadingQr(false);
       }
   };
 
@@ -318,7 +331,7 @@ export default function CardPage() {
                 {/* Header Modal */}
                 <div className="bg-blue-600 p-4 text-white flex justify-between items-center">
                     <h3 className="font-bold text-lg flex items-center gap-2">
-                        <QrCodeIcon className="w-6 h-6" /> Chuyển Khoản Nhanh
+                        <QrCodeIcon className="w-6 h-6" /> Quét Mã Chuyển Khoản
                     </h3>
                     <button onClick={() => setQrModalOpen(false)} className="hover:bg-blue-700 p-1 rounded"><XMarkIcon className="w-6 h-6" /></button>
                 </div>
@@ -328,12 +341,26 @@ export default function CardPage() {
                     <div className="flex justify-center mb-6">
                         <div className="bg-white p-2 border-2 border-slate-200 rounded-xl shadow-sm">
                             <img src={qrData.url} alt="QR Code" className="w-56 h-56 object-contain" />
-                            {/* 🔥 NÚT TẢI ẢNH ĐÃ CẬP NHẬT 🔥 */}
+                            
+                            {/* 🔥 NÚT TẢI ẢNH CẢI TIẾN 🔥 */}
                             <button 
                                 onClick={handleDownloadQr}
-                                className="w-full mt-2 text-xs font-bold text-blue-600 hover:underline flex items-center justify-center gap-1 py-1 hover:bg-blue-50 rounded"
+                                disabled={isDownloadingQr}
+                                className={`w-full mt-2 text-xs font-bold flex items-center justify-center gap-1 py-2 rounded transition-colors ${
+                                    isDownloadingQr 
+                                    ? 'bg-gray-100 text-gray-400 cursor-wait' 
+                                    : 'text-blue-600 hover:bg-blue-50 hover:underline'
+                                }`}
                             >
-                                <ArrowDownTrayIcon className="w-3 h-3" /> Tải ảnh QR về máy
+                                {isDownloadingQr ? (
+                                    <>
+                                        <ArrowPathIcon className="w-3 h-3 animate-spin" /> Đang xử lý...
+                                    </>
+                                ) : (
+                                    <>
+                                        <ArrowDownTrayIcon className="w-3 h-3" /> Tải ảnh QR về máy
+                                    </>
+                                )}
                             </button>
                         </div>
                     </div>
