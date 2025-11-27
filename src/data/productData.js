@@ -2,7 +2,7 @@
 // --- Cấu hình tên Shop ---
 export const shopDisplayNames = {
   A: "Shop Pass AD + Amber ",
-  B: "Shop Đồ Tek",
+  B: "Shop Bản vẽ",
   C: "Shop Vật Phẩm",
   D: "Shop Skin",
   E: "Shop Thú",
