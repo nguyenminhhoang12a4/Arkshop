@@ -610,12 +610,6 @@ export const EventPage = () => {
         <p className="text-xl sm:text-2xl text-gray-300 mb-6 break-words px-2">
           🔥 Đừng bỏ lỡ sự giàu sang! Vận may đang chờ bạn lúc 20h! 🔥
         </p>
-        <button 
-          onClick={() => window.open("https://docs.google.com/spreadsheets/d/1C0m4B6UTP_opTxz8EezOmtIK7LjRfCogyue32ibx94I/edit?usp=sharing", "_blank")}
-          className="bg-yellow-600 text-white py-3 px-8 rounded-lg font-bold text-base sm:text-lg hover:bg-yellow-500 transition-colors duration-300 shadow-lg shadow-yellow-600/30 transform hover:-translate-y-1 flex items-center justify-center mx-auto space-x-3 w-full sm:w-auto"
-        >
-          <span>Xem Bảng Điểm Tích Lũy Ngay!</span>
-        </button>
       </div>
 
     </div>
