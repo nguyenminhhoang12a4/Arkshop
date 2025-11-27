@@ -5,7 +5,7 @@ import {
     BanknotesIcon, ClockIcon, CreditCardIcon, 
     CalculatorIcon, ClipboardDocumentIcon, PlusCircleIcon, TrashIcon,
     CheckCircleIcon, XCircleIcon, ArrowPathIcon, UserGroupIcon, MagnifyingGlassIcon,
-    CurrencyDollarIcon, QrCodeIcon, XMarkIcon
+    CurrencyDollarIcon, QrCodeIcon, XMarkIcon, ArrowDownTrayIcon
 } from '@heroicons/react/24/solid';
 
 // --- HÀM HELPER: Lấy mã ngân hàng chuẩn cho VietQR ---
@@ -13,7 +13,6 @@ const getBankId = (bankName) => {
     if (!bankName) return 'VCB';
     const name = bankName.toLowerCase();
     
-    // Mapping thủ công
     if (name.includes('vietcombank')) return 'VCB';
     if (name.includes('bidv')) return 'BIDV';
     if (name.includes('vietinbank')) return 'ICB';
@@ -94,7 +93,6 @@ export default function CardPage() {
 
   // Form Rút tiền
   const [withdrawForm, setWithdrawForm] = useState({ bank_name: '', account_number: '', account_name: '', amount: '' });
-  // 🔥 State mới: Cờ báo hiệu đã tự động điền thông tin
   const [isAutoFilled, setIsAutoFilled] = useState(false);
 
   // State lịch sử
@@ -120,9 +118,7 @@ export default function CardPage() {
 
   useEffect(() => {
     if (user) {
-        // 🔥 GỌI HÀM TỰ ĐỘNG ĐIỀN KHI CÓ USER 🔥
         fetchLastWithdrawalInfo();
-
         if (activeTab === 'history') fetchHistory();
         if (activeTab === 'admin_money' && profile?.role === 'admin') handleSearchUsers(1);
         if (activeTab === 'admin_withdraw' && profile?.role === 'admin') fetchAdminWithdraws();
@@ -141,7 +137,6 @@ export default function CardPage() {
     }
   };
 
-  // 🔥 HÀM MỚI: LẤY THÔNG TIN RÚT TIỀN LẦN CUỐI 🔥
   const fetchLastWithdrawalInfo = async () => {
       if (!user) return;
       try {
@@ -149,7 +144,7 @@ export default function CardPage() {
               .from('withdraw_requests')
               .select('bank_name, account_number, account_name')
               .eq('user_id', user.id)
-              .order('created_at', { ascending: false }) // Lấy cái mới nhất
+              .order('created_at', { ascending: false })
               .limit(1)
               .maybeSingle();
 
@@ -160,7 +155,7 @@ export default function CardPage() {
                   account_number: data.account_number || '',
                   account_name: data.account_name || ''
               }));
-              setIsAutoFilled(true); // Bật thông báo đã điền
+              setIsAutoFilled(true);
           }
       } catch (err) {
           console.error("Lỗi auto-fill:", err);
@@ -208,7 +203,6 @@ export default function CardPage() {
   };
   const resetForm = () => setCardsList([{ id: Date.now(), telco: 'VIETTEL', amount: '10000', code: '', serial: '', status: 'idle', msg: '' }]);
 
-  // --- XỬ LÝ RÚT TIỀN (CẬP NHẬT) ---
   const handleWithdrawSubmit = async (e) => {
     e.preventDefault();
     if (!user) { alert("Cần đăng nhập."); navigate('/login'); return; }
@@ -219,7 +213,6 @@ export default function CardPage() {
         const { error } = await supabase.rpc('create_withdraw_request', { p_amount: amt, p_bank_name: withdrawForm.bank_name, p_account_number: withdrawForm.account_number, p_account_name: withdrawForm.account_name });
         if (error) throw error;
         alert("Tạo lệnh thành công!"); 
-        // 🔥 CHỈ RESET SỐ TIỀN, GIỮ LẠI THÔNG TIN TK CHO LẦN SAU 🔥
         setWithdrawForm(prev => ({ ...prev, amount: '' })); 
         fetchUserAndBalance();
     } catch (err) { alert("Lỗi: " + err.message); } finally { setLoading(false); }
@@ -232,7 +225,7 @@ export default function CardPage() {
       const from = (pageNumber - 1) * ITEMS_PER_PAGE;
       const to = from + ITEMS_PER_PAGE - 1;
       let query = supabase.from('profiles').select('*', { count: 'exact' }).order('balance', { ascending: false }).range(from, to);
-      if (adminSearchTerm.trim()) query = query.or(`character_name.ilike.%${adminSearchTerm}%,email.ilike.%${adminSearchTerm}%`);
+      if (adminSearchTerm.trim()) query = query.or(`character_name.ilike.%${adminSearchTerm}%,email.ilike.%${adminSearchTerm}%,zalo_contact.ilike.%${adminSearchTerm}%`);
       const { data, count, error } = await query;
       if (error) throw error;
       setAdminUserList(data || []); setHasMore(count > to + 1);
@@ -268,11 +261,18 @@ export default function CardPage() {
       } catch (err) { alert(err.message); } finally { setLoading(false); }
   };
 
+  // --- HÀM MỞ MODAL QR (Tạo Link) ---
   const openQrModal = (item) => {
       const bankId = getBankId(item.bank_name);
       const qrUrl = `https://img.vietqr.io/image/${bankId}-${item.account_number}-compact.png?amount=${item.amount}&addInfo=RUT TIEN ${item.profiles?.character_name}&accountName=${encodeURIComponent(item.account_name)}`;
       setQrData({ url: qrUrl, info: item });
       setQrModalOpen(true);
+  };
+
+  // --- HÀM COPY ---
+  const handleCopy = (text) => {
+      navigator.clipboard.writeText(text);
+      alert(`Đã copy: ${text}`);
   };
 
   const formatCurrency = (num) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(num);
@@ -283,35 +283,80 @@ export default function CardPage() {
   return (
     <div className="font-sans text-slate-900 bg-slate-50 min-h-screen pb-20 relative"> 
       
-      {/* --- MODAL QR CODE --- */}
+      {/* --- MODAL QR CODE (ĐÃ CẬP NHẬT NÚT COPY) --- */}
       {qrModalOpen && qrData && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 animate-fade-in" onClick={() => setQrModalOpen(false)}>
-            <div className="bg-white rounded-2xl max-w-sm w-full overflow-hidden shadow-2xl relative" onClick={e => e.stopPropagation()}>
+            <div className="bg-white rounded-2xl max-w-md w-full overflow-hidden shadow-2xl relative" onClick={e => e.stopPropagation()}>
+                {/* Header Modal */}
                 <div className="bg-blue-600 p-4 text-white flex justify-between items-center">
                     <h3 className="font-bold text-lg flex items-center gap-2">
-                        <QrCodeIcon className="w-6 h-6" /> Quét Mã Chuyển Khoản
+                        <QrCodeIcon className="w-6 h-6" /> Chuyển Khoản Nhanh
                     </h3>
                     <button onClick={() => setQrModalOpen(false)} className="hover:bg-blue-700 p-1 rounded"><XMarkIcon className="w-6 h-6" /></button>
                 </div>
-                <div className="p-6 flex flex-col items-center">
-                    <div className="bg-white p-2 border-2 border-slate-200 rounded-xl shadow-inner mb-4">
-                        <img src={qrData.url} alt="QR Code" className="w-64 h-64 object-contain" />
-                    </div>
-                    <div className="text-center w-full bg-slate-50 p-3 rounded-lg border border-slate-100">
-                        <p className="text-xs text-slate-500 uppercase font-bold">Người nhận</p>
-                        <p className="text-lg font-bold text-slate-800 uppercase mb-2">{qrData.info.account_name}</p>
-                        <div className="flex justify-between text-sm border-t border-slate-200 pt-2">
-                            <span className="text-slate-500">Số tiền:</span>
-                            <span className="font-bold text-red-600 text-lg">{formatCurrency(qrData.info.amount)}</span>
+
+                <div className="p-6">
+                    {/* QR Image */}
+                    <div className="flex justify-center mb-6">
+                        <div className="bg-white p-2 border-2 border-slate-200 rounded-xl shadow-sm">
+                            <img src={qrData.url} alt="QR Code" className="w-56 h-56 object-contain" />
+                            <a 
+                                href={qrData.url} 
+                                download="qr-code.png" 
+                                target="_blank" 
+                                rel="noreferrer"
+                                className="block text-center mt-2 text-xs font-bold text-blue-600 hover:underline flex items-center justify-center gap-1"
+                            >
+                                <ArrowDownTrayIcon className="w-3 h-3" /> Tải ảnh QR
+                            </a>
                         </div>
-                        <div className="flex justify-between text-sm mt-1">
-                            <span className="text-slate-500">Ngân hàng:</span>
-                            <span className="font-bold text-blue-700">{qrData.info.bank_name}</span>
+                    </div>
+
+                    {/* Quick Actions (Nút Copy) */}
+                    <div className="space-y-3">
+                        <div className="flex items-center gap-2">
+                            <div className="flex-1 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                                <p className="text-xs text-slate-500 uppercase font-bold">Số tài khoản</p>
+                                <p className="text-lg font-mono font-bold text-slate-800">{qrData.info.account_number}</p>
+                            </div>
+                            <button 
+                                onClick={() => handleCopy(qrData.info.account_number)}
+                                className="bg-blue-100 text-blue-700 p-3 rounded-lg hover:bg-blue-200 font-bold text-sm whitespace-nowrap"
+                            >
+                                Copy
+                            </button>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            <div className="flex-1 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                                <p className="text-xs text-slate-500 uppercase font-bold">Số tiền</p>
+                                <p className="text-lg font-bold text-red-600">{formatCurrency(qrData.info.amount)}</p>
+                            </div>
+                            <button 
+                                onClick={() => handleCopy(qrData.info.amount)}
+                                className="bg-red-100 text-red-700 p-3 rounded-lg hover:bg-red-200 font-bold text-sm whitespace-nowrap"
+                            >
+                                Copy
+                            </button>
+                        </div>
+
+                        <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                             <div className="flex justify-between items-center mb-1">
+                                 <p className="text-xs text-slate-500 uppercase font-bold">Ngân hàng</p>
+                                 <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">{qrData.info.bank_name}</span>
+                             </div>
+                             <p className="text-sm font-bold text-slate-800 uppercase">{qrData.info.account_name}</p>
                         </div>
                     </div>
-                    <p className="text-xs text-slate-400 mt-4 italic text-center">
-                        Mở App Ngân hàng - Quét mã - Kiểm tra tên & số tiền trước khi chuyển.
-                    </p>
+                    
+                    <div className="mt-6 text-center">
+                        <button 
+                            onClick={() => setQrModalOpen(false)}
+                            className="w-full py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200"
+                        >
+                            Đóng
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
