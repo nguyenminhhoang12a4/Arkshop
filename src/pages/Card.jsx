@@ -4,10 +4,68 @@ import { supabase } from '../services/supabaseClient';
 import { 
     BanknotesIcon, ClockIcon, CreditCardIcon, 
     CalculatorIcon, ClipboardDocumentIcon, PlusCircleIcon, TrashIcon,
-    CheckCircleIcon, XCircleIcon, ArrowPathIcon, UserGroupIcon, MagnifyingGlassIcon
+    CheckCircleIcon, XCircleIcon, ArrowPathIcon, UserGroupIcon, MagnifyingGlassIcon,
+    CurrencyDollarIcon, QrCodeIcon, XMarkIcon
 } from '@heroicons/react/24/solid';
 
-// Danh sách ngân hàng & Ví điện tử (Giữ nguyên)
+// --- HÀM HELPER: Lấy mã ngân hàng chuẩn cho VietQR ---
+const getBankId = (bankName) => {
+    if (!bankName) return 'VCB';
+    const name = bankName.toLowerCase();
+    
+    // Mapping thủ công dựa trên danh sách BANK_LIST của bạn
+    if (name.includes('vietcombank')) return 'VCB';
+    if (name.includes('bidv')) return 'BIDV';
+    if (name.includes('vietinbank')) return 'ICB';
+    if (name.includes('agribank')) return 'VBA';
+    if (name.includes('sacombank')) return 'STB';
+    if (name.includes('techcombank')) return 'TCB';
+    if (name.includes('mb')) return 'MB';
+    if (name.includes('vpbank')) return 'VPB';
+    if (name.includes('tpbank')) return 'TPB';
+    if (name.includes('acb')) return 'ACB';
+    if (name.includes('donga')) return 'DOB';
+    if (name.includes('eximbank')) return 'EIB';
+    if (name.includes('seabank')) return 'SEAB';
+    if (name.includes('vib')) return 'VIB';
+    if (name.includes('msb') || name.includes('maritime')) return 'MSB';
+    if (name.includes('shb')) return 'SHB';
+    if (name.includes('ocb')) return 'OCB';
+    if (name.includes('hdbank')) return 'HDB';
+    if (name.includes('nama')) return 'NAMABANK';
+    if (name.includes('saigonbank')) return 'SGB';
+    if (name.includes('vietbank')) return 'VIETBANK';
+    if (name.includes('abbank')) return 'ABB';
+    if (name.includes('kienlong')) return 'KLB';
+    if (name.includes('bvbank') || name.includes('ban viet')) return 'BVB';
+    if (name.includes('pvcom')) return 'PVCOMBANK';
+    if (name.includes('ocean')) return 'OJB';
+    if (name.includes('ncb')) return 'NCB';
+    if (name.includes('shinhan')) return 'SHINHAN';
+    if (name.includes('scb')) return 'SCB';
+    if (name.includes('vieta') || name.includes('vab')) return 'VAB';
+    if (name.includes('gpbank')) return 'GPB';
+    if (name.includes('pgbank')) return 'PGB';
+    if (name.includes('public')) return 'PBVN';
+    if (name.includes('uob')) return 'UOB';
+    if (name.includes('woori')) return 'WOORI';
+    if (name.includes('cimb')) return 'CIMB';
+    if (name.includes('cake')) return 'CAKE';
+    if (name.includes('timo')) return 'TIMO';
+    if (name.includes('tnex')) return 'TNEX';
+    if (name.includes('lio')) return 'LIOBANK';
+    if (name.includes('viettel')) return 'VTLMONEY';
+    if (name.includes('vnpt')) return 'VNPTMONEY';
+    
+    // Ví điện tử (Momo/ZaloPay) thường dùng số điện thoại làm STK, 
+    // VietQR hỗ trợ Momo qua mã 'MOMO' nhưng đôi khi không ổn định.
+    if (name.includes('momo')) return 'MOMO'; 
+    if (name.includes('zalopay')) return 'ZALOPAY';
+
+    return 'VCB'; // Mặc định
+};
+
+// Danh sách ngân hàng & Ví điện tử
 const BANK_LIST = [
     "Ngân hàng Vietcombank", "Ngân hàng BIDV", "Ngân hàng VIETINBANK", "Ngân hàng AGRIBANK",
     "Ngân hàng SACOMBANK", "Ngân hàng TECHCOMBANK", "Ngân hàng MBBANK", "Ngân hàng VPBANK",
@@ -51,6 +109,13 @@ export default function CardPage() {
   const ITEMS_PER_PAGE = 20;
   const [hasMore, setHasMore] = useState(true);
 
+  // --- STATE CHO ADMIN QUẢN LÝ RÚT TIỀN ---
+  const [adminWithdrawList, setAdminWithdrawList] = useState([]);
+
+  // --- STATE MODAL QR CODE (MỚI) ---
+  const [qrModalOpen, setQrModalOpen] = useState(false);
+  const [qrData, setQrData] = useState(null);
+
   useEffect(() => {
     fetchUserAndBalance();
   }, []);
@@ -59,6 +124,7 @@ export default function CardPage() {
     if (user) {
         if (activeTab === 'history') fetchHistory();
         if (activeTab === 'admin_money' && profile?.role === 'admin') handleSearchUsers(1);
+        if (activeTab === 'admin_withdraw' && profile?.role === 'admin') fetchAdminWithdraws();
     }
   }, [activeTab, user, profile]);
 
@@ -69,7 +135,7 @@ export default function CardPage() {
       const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
       if (data) {
           setBalance(data.balance);
-          setProfile(data); // Lưu profile để check role
+          setProfile(data); 
       }
     }
   };
@@ -84,7 +150,7 @@ export default function CardPage() {
     }
   };
 
-  // --- CÁC HÀM QUẢN LÝ DANH SÁCH THẺ (Giữ nguyên) ---
+  // --- CÁC HÀM QUẢN LÝ DANH SÁCH THẺ ---
   const addCardRow = () => {
     setCardsList([...cardsList, { id: Date.now(), telco: 'VIETTEL', amount: '10000', code: '', serial: '', status: 'idle', msg: '' }]);
   };
@@ -157,7 +223,7 @@ export default function CardPage() {
     setLoading(false);
     if (successCount > 0) {
         alert(`Đã gửi thành công ${successCount} thẻ! Vui lòng chờ hệ thống duyệt.`);
-        fetchUserAndBalance(); // Cập nhật lại số dư nếu có thẻ đúng ngay lập tức (hiếm)
+        fetchUserAndBalance(); 
     }
   };
 
@@ -165,7 +231,7 @@ export default function CardPage() {
     setCardsList([{ id: Date.now(), telco: 'VIETTEL', amount: '10000', code: '', serial: '', status: 'idle', msg: '' }]);
   };
 
-  // --- XỬ LÝ RÚT TIỀN (Giữ nguyên) ---
+  // --- XỬ LÝ RÚT TIỀN ---
   const handleWithdrawSubmit = async (e) => {
     e.preventDefault();
     if (!user) { alert("Bạn cần đăng nhập."); navigate('/login'); return; }
@@ -194,7 +260,7 @@ export default function CardPage() {
     }
   };
 
-  // --- ADMIN: TÌM KIẾM & PHÂN TRANG ---
+  // --- ADMIN: QUẢN LÝ TIỀN ---
   const handleSearchUsers = async (pageNumber = 1) => {
     if (profile?.role !== 'admin') return;
     setLoading(true);
@@ -207,7 +273,7 @@ export default function CardPage() {
       let query = supabase
         .from('profiles')
         .select('*', { count: 'exact' })
-        .order('balance', { ascending: false }) // Sắp xếp theo TIỀN giảm dần
+        .order('balance', { ascending: false }) 
         .range(from, to);
 
       if (adminSearchTerm.trim()) {
@@ -226,28 +292,86 @@ export default function CardPage() {
     }
   };
 
-  // --- ADMIN: CẬP NHẬT SỐ DƯ (BẢO MẬT) ---
   const handleAdminUpdateBalance = async (userId) => {
     if (newBalanceValue === '') return;
     const confirmUpdate = window.confirm(`Bạn có chắc chắn muốn set số dư của user này thành ${formatCurrency(newBalanceValue)} không?`);
     if (!confirmUpdate) return;
 
     try {
-        // Gọi hàm RPC bảo mật thay vì update trực tiếp
         const { error } = await supabase.rpc('admin_update_balance', {
             p_user_id: userId,
             p_new_balance: parseInt(newBalanceValue)
         });
 
         if (error) throw error;
-
         alert("✅ Đã cập nhật số dư thành công!");
         setEditingUserId(null);
-        handleSearchUsers(page); // Load lại danh sách
+        handleSearchUsers(page); 
 
     } catch (error) {
         alert("Lỗi cập nhật: " + error.message);
     }
+  };
+
+  // --- ADMIN: QUẢN LÝ RÚT TIỀN ---
+  const fetchAdminWithdraws = async () => {
+    if (profile?.role !== 'admin') return;
+    setLoading(true);
+    try {
+        const { data, error } = await supabase
+            .from('withdraw_requests')
+            .select(`
+                *,
+                profiles (character_name, email, zalo_contact)
+            `)
+            .order('created_at', { ascending: false })
+            .limit(50); 
+
+        if (error) throw error;
+        setAdminWithdrawList(data || []);
+    } catch (error) {
+        console.error("Lỗi tải đơn rút:", error);
+        alert("Lỗi tải danh sách rút tiền: " + error.message);
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  const handleProcessWithdraw = async (requestId, status) => {
+      const actionText = status === 'completed' ? 'DUYỆT (Chuyển tiền xong)' : 'HỦY (Hoàn tiền)';
+      if (!window.confirm(`Bạn có chắc chắn muốn ${actionText} đơn này không?`)) return;
+
+      setLoading(true);
+      try {
+          const { error } = await supabase.rpc('admin_process_withdraw', {
+              p_request_id: requestId,
+              p_status: status
+          });
+
+          if (error) throw error;
+
+          alert(`Đã ${status === 'completed' ? 'duyệt' : 'hủy'} thành công!`);
+          fetchAdminWithdraws(); 
+
+      } catch (error) {
+          alert("Lỗi xử lý: " + error.message);
+      } finally {
+          setLoading(false);
+      }
+  };
+
+  // --- HÀM MỞ MODAL QR (LOGIC TẠO MÃ QR) ---
+  const openQrModal = (item) => {
+      const bankId = getBankId(item.bank_name);
+      // Tạo link QR VietQR
+      // Format: https://img.vietqr.io/image/<BANK_ID>-<ACCOUNT_NO>-<TEMPLATE>.png?amount=<AMOUNT>&addInfo=<CONTENT>&accountName=<NAME>
+      const amount = item.amount;
+      const content = `RUT TIEN ${item.profiles?.character_name || 'USER'}`;
+      
+      const qrUrl = `https://img.vietqr.io/image/${bankId}-${item.account_number}-compact.png?amount=${amount}&addInfo=${encodeURIComponent(content)}&accountName=${encodeURIComponent(item.account_name)}`;
+      
+      setQrData({ url: qrUrl, info: item });
+      setQrModalOpen(true);
   };
 
   const formatCurrency = (num) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(num);
@@ -256,7 +380,43 @@ export default function CardPage() {
   const realReceived = inputAmount > withdrawFee ? inputAmount - withdrawFee : 0;
 
   return (
-    <div className="font-sans text-slate-900 bg-slate-50 min-h-screen pb-20"> 
+    <div className="font-sans text-slate-900 bg-slate-50 min-h-screen pb-20 relative"> 
+      
+      {/* --- MODAL QR CODE --- */}
+      {qrModalOpen && qrData && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 animate-fade-in" onClick={() => setQrModalOpen(false)}>
+            <div className="bg-white rounded-2xl max-w-sm w-full overflow-hidden shadow-2xl relative" onClick={e => e.stopPropagation()}>
+                <div className="bg-blue-600 p-4 text-white flex justify-between items-center">
+                    <h3 className="font-bold text-lg flex items-center gap-2">
+                        <QrCodeIcon className="w-6 h-6" /> Quét Mã Chuyển Khoản
+                    </h3>
+                    <button onClick={() => setQrModalOpen(false)} className="hover:bg-blue-700 p-1 rounded"><XMarkIcon className="w-6 h-6" /></button>
+                </div>
+                <div className="p-6 flex flex-col items-center">
+                    <div className="bg-white p-2 border-2 border-slate-200 rounded-xl shadow-inner mb-4">
+                        <img src={qrData.url} alt="QR Code" className="w-64 h-64 object-contain" />
+                    </div>
+                    <div className="text-center w-full bg-slate-50 p-3 rounded-lg border border-slate-100">
+                        <p className="text-xs text-slate-500 uppercase font-bold">Người nhận</p>
+                        <p className="text-lg font-bold text-slate-800 uppercase mb-2">{qrData.info.account_name}</p>
+                        
+                        <div className="flex justify-between text-sm border-t border-slate-200 pt-2">
+                            <span className="text-slate-500">Số tiền:</span>
+                            <span className="font-bold text-red-600 text-lg">{formatCurrency(qrData.info.amount)}</span>
+                        </div>
+                        <div className="flex justify-between text-sm mt-1">
+                            <span className="text-slate-500">Ngân hàng:</span>
+                            <span className="font-bold text-blue-700">{qrData.info.bank_name}</span>
+                        </div>
+                    </div>
+                    <p className="text-xs text-slate-400 mt-4 italic text-center">
+                        Mở App Ngân hàng - Quét mã - Kiểm tra tên & số tiền trước khi chuyển.
+                    </p>
+                </div>
+            </div>
+        </div>
+      )}
+
       <div className="max-w-5xl mx-auto pt-6 px-4">
         
         {/* --- Card Số dư --- */}
@@ -283,7 +443,7 @@ export default function CardPage() {
         <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-slate-200">
             
             {/* Tabs Navigation */}
-            <div className="grid grid-cols-3 sm:grid-cols-4 border-b-2 border-slate-100">
+            <div className="grid grid-cols-3 sm:grid-cols-5 border-b-2 border-slate-100">
                 {['deposit', 'withdraw', 'history'].map((tab) => (
                     <button 
                         key={tab}
@@ -302,18 +462,30 @@ export default function CardPage() {
                     </button>
                 ))}
                 
-                {/* TAB ADMIN RIÊNG BIỆT */}
+                {/* 2 TAB ADMIN RIÊNG BIỆT */}
                 {profile?.role === 'admin' && (
-                    <button 
-                        onClick={() => setActiveTab('admin_money')} 
-                        className={`py-4 font-bold text-xs sm:text-sm uppercase tracking-wider transition-all flex items-center justify-center gap-2
-                            ${activeTab === 'admin_money' 
-                                ? 'bg-red-50 text-red-700 border-b-4 border-red-700 shadow-inner' 
-                                : 'bg-slate-50 text-slate-500 hover:bg-red-50 hover:text-red-600'}`}
-                    >
-                        <UserGroupIcon className="w-5 h-5" />
-                        <span className="hidden sm:inline">Quản Lý</span>
-                    </button>
+                    <>
+                        <button 
+                            onClick={() => setActiveTab('admin_money')} 
+                            className={`py-4 font-bold text-xs sm:text-sm uppercase tracking-wider transition-all flex items-center justify-center gap-2
+                                ${activeTab === 'admin_money' 
+                                    ? 'bg-red-50 text-red-700 border-b-4 border-red-700 shadow-inner' 
+                                    : 'bg-slate-50 text-slate-500 hover:bg-red-50 hover:text-red-600'}`}
+                        >
+                            <UserGroupIcon className="w-5 h-5" />
+                            <span className="hidden sm:inline">QL Tiền</span>
+                        </button>
+                        <button 
+                            onClick={() => setActiveTab('admin_withdraw')} 
+                            className={`py-4 font-bold text-xs sm:text-sm uppercase tracking-wider transition-all flex items-center justify-center gap-2
+                                ${activeTab === 'admin_withdraw' 
+                                    ? 'bg-orange-50 text-orange-700 border-b-4 border-orange-700 shadow-inner' 
+                                    : 'bg-slate-50 text-slate-500 hover:bg-orange-50 hover:text-orange-600'}`}
+                        >
+                            <CurrencyDollarIcon className="w-5 h-5" />
+                            <span className="hidden sm:inline">Duyệt Rút</span>
+                        </button>
+                    </>
                 )}
             </div>
 
@@ -612,13 +784,53 @@ export default function CardPage() {
                         )}
                     </div>
                 )}
+
+                {/* --- TAB ADMIN: DUYỆT RÚT TIỀN (CÓ QR) --- */}
+                {activeTab === 'admin_withdraw' && profile?.role === 'admin' && (
+                    <div className="animate-fade-in space-y-6">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-xl font-bold text-slate-700 border-l-4 border-orange-500 pl-3">Duyệt Đơn Rút Tiền</h3>
+                            <button onClick={fetchAdminWithdraws} className="text-blue-600 hover:underline text-sm flex items-center gap-1"><ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Tải lại</button>
+                        </div>
+                        <div className="border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm">
+                            <div className="overflow-x-auto">
+                                <table className="min-w-full text-sm text-left">
+                                    <thead className="bg-slate-100 text-slate-700 font-bold uppercase text-xs border-b border-slate-200">
+                                        <tr><th className="px-4 py-3">Người rút</th><th className="px-4 py-3">Thông tin nhận</th><th className="px-4 py-3 text-right">Số tiền</th><th className="px-4 py-3 text-center">Trạng thái</th><th className="px-4 py-3 text-right">Hành động</th></tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-200">
+                                        {adminWithdrawList.map((item) => (
+                                            <tr key={item.id} className="hover:bg-slate-50">
+                                                <td className="px-4 py-3"><div className="font-bold text-slate-800">{item.profiles?.character_name}</div><div className="text-xs text-slate-500">{item.profiles?.email}</div></td>
+                                                <td className="px-4 py-3">
+                                                    <div className="font-bold text-blue-700">{item.bank_name}</div>
+                                                    <div className="text-xs font-mono text-slate-600">{item.account_number}</div>
+                                                    <div className="text-xs font-bold text-slate-500 uppercase">{item.account_name}</div>
+                                                </td>
+                                                <td className="px-4 py-3 text-right font-bold text-red-600 text-base">{formatCurrency(item.amount)}</td>
+                                                <td className="px-4 py-3 text-center"><span className={`px-2 py-1 rounded text-xs font-bold ${item.status === 'completed' ? 'bg-green-100 text-green-700' : item.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700 animate-pulse'}`}>{item.status === 'completed' ? 'Đã duyệt' : item.status === 'rejected' ? 'Đã hủy' : 'Chờ duyệt'}</span></td>
+                                                <td className="px-4 py-3 text-right">
+                                                    {item.status === 'pending' ? (
+                                                        <div className="flex gap-2 justify-end">
+                                                            {/* NÚT QR CODE */}
+                                                            <button onClick={() => openQrModal(item)} className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-lg shadow-sm" title="Quét QR chuyển tiền"><QrCodeIcon className="w-4 h-4" /></button>
+                                                            <button onClick={() => handleProcessWithdraw(item.id, 'completed')} className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs font-bold shadow-sm">DUYỆT</button>
+                                                            <button onClick={() => handleProcessWithdraw(item.id, 'rejected')} className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-xs font-bold shadow-sm">HỦY</button>
+                                                        </div>
+                                                    ) : <span className="text-xs text-slate-400 italic">Đã xử lý</span>}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
       </div>
-      <style>{`
-        .animate-fade-in { animation: fadeIn 0.3s ease-in-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
-      `}</style>
+      <style>{` .animate-fade-in { animation: fadeIn 0.3s ease-in-out; } @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } } `}</style>
     </div>
   );
 }
