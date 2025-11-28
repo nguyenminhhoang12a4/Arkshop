@@ -600,7 +600,7 @@ export const HomePage = () => {
                     <input type="text" className="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white focus:border-yellow-500 outline-none" placeholder="VD: 19h tối nay" value={formTime} onChange={e => setFormTime(e.target.value)} required />
                  </div>
                  <div>
-                    <label className="block text-sm text-gray-400 mb-1">Điểm thưởng (Event Points)</label>
+                    <label className="block text-sm text-gray-400 mb-1">Điểm thưởng (Vietlott)</label>
                     <p className="text-xs text-emerald-400 mb-2">
                         (Bạn đang có: {profile?.event_points || 0} EP)
                     </p>
