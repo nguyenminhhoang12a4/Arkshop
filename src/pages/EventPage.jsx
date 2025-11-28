@@ -631,7 +631,7 @@ export const EventPage = () => {
 
           {/* Cột 3 */}
           <div className="bg-gray-800 p-6 rounded-lg shadow-lg space-y-3 border border-gray-700">
-            <h3 className="text-xl font-bold text-yellow-400 border-b border-gray-600 pb-2 mb-3">Mốc 5-7 Điểm</h3>
+            <h3 className="text-xl font-bold text-yellow-400 border-b border-gray-600 pb-2 mb-3">Mốc 5-10 Điểm</h3>
             <p><span className="font-bold text-emerald-400">5đ</span> = 1 bv tự chọn</p>
             <p><span className="font-bold text-emerald-400">5đ</span> = 1 thú đột biến ramdon (lv 538 + 60lv)</p>
             <p><span className="font-bold text-emerald-400">5đ</span> = alpha raptor lv</p>
@@ -639,7 +639,7 @@ export const EventPage = () => {
             <div className="border-t border-gray-700 my-4"></div>
             <p><span className="font-bold text-emerald-400">6đ</span> = 1 thú đột biến tự chọn (lv 538 + 60lv)</p>
             <div className="border-t border-gray-700 my-4"></div>
-            <p><span className="font-bold text-emerald-400">7đ</span> = 1 đảo bay</p>
+            <p><span className="font-bold text-emerald-400">10đ</span> = 1 đảo bay</p>
           </div>
         </div>
       </div>
