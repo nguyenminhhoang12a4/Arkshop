@@ -6,7 +6,7 @@ import {
     CalculatorIcon, ClipboardDocumentIcon, PlusCircleIcon, TrashIcon,
     CheckCircleIcon, XCircleIcon, ArrowPathIcon, UserGroupIcon, MagnifyingGlassIcon,
     CurrencyDollarIcon, QrCodeIcon, XMarkIcon, ArrowDownTrayIcon, ArrowsRightLeftIcon,
-    UserCircleIcon, PaperAirplaneIcon // Thêm icon
+    UserCircleIcon, PaperAirplaneIcon, ArrowRightOnRectangleIcon
 } from '@heroicons/react/24/solid';
 
 // --- HÀM HELPER: Lấy mã ngân hàng chuẩn cho VietQR ---
@@ -301,7 +301,10 @@ export default function CardPage() {
     const amount = parseInt(transferForm.amount);
 
     if (!transferForm.email) return alert("Vui lòng nhập email người nhận");
+    
+    // Tối thiểu 1.000 VNĐ
     if (amount < 1000) return alert("Số tiền chuyển tối thiểu là 1.000 VNĐ");
+    
     if (amount + transferFee > balance) return alert(`Số dư không đủ! (Cần: ${formatCurrency(amount + transferFee)})`);
 
     const recipientName = selectedRecipient ? selectedRecipient.character_name : transferForm.email;
@@ -654,37 +657,40 @@ export default function CardPage() {
                                         {history.transfers && history.transfers.length > 0 ? (
                                             history.transfers.map(item => {
                                                 const isSender = item.sender_id === user.id;
+                                                // Sửa lỗi hiển thị: Nếu là người gửi -> hiện người nhận. Nếu là người nhận -> hiện người gửi.
+                                                const counterparty = isSender ? item.receiver : item.sender;
+                                                
                                                 return (
                                                     <tr key={item.id} className="bg-white hover:bg-purple-50 transition-colors">
                                                         <td className="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">{new Date(item.created_at).toLocaleString('vi-VN')}</td>
                                                         <td className="px-4 py-3">
                                                             {isSender ? (
-                                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-200">
-                                                                    <PaperAirplaneIcon className="w-3 h-3 mr-1 transform -rotate-45"/> Chuyển đi
+                                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-800 border border-red-200 shadow-sm">
+                                                                    <ArrowRightOnRectangleIcon className="w-3 h-3 mr-1"/> Chuyển đi
                                                                 </span>
                                                             ) : (
-                                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
+                                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-800 border border-green-200 shadow-sm">
                                                                     <ArrowDownTrayIcon className="w-3 h-3 mr-1"/> Nhận tiền
                                                                 </span>
                                                             )}
                                                         </td>
                                                         <td className="px-4 py-3">
                                                             <div className="flex flex-col">
-                                                                <span className="font-bold text-slate-700">
-                                                                    {isSender ? (item.receiver ? item.receiver.character_name : 'Unknown') : (item.sender ? item.sender.character_name : 'Unknown')}
+                                                                <span className="font-bold text-slate-800 text-sm">
+                                                                    {counterparty ? counterparty.character_name : 'Unknown'}
                                                                 </span>
-                                                                <span className="text-xs text-slate-500">
-                                                                    {isSender ? (item.receiver ? item.receiver.email : '') : (item.sender ? item.sender.email : '')}
+                                                                <span className="text-xs text-slate-500 italic">
+                                                                    {counterparty ? counterparty.email : 'Unknown'}
                                                                 </span>
                                                             </div>
                                                         </td>
-                                                        <td className="px-4 py-3 text-right font-bold whitespace-nowrap">
+                                                        <td className="px-4 py-3 text-right font-extrabold text-base whitespace-nowrap">
                                                             <span className={isSender ? 'text-red-600' : 'text-green-600'}>
                                                                 {isSender ? '-' : '+'}{formatCurrency(item.amount)}
                                                             </span>
                                                         </td>
-                                                        <td className="px-4 py-3 text-slate-600 italic max-w-xs truncate" title={item.note}>
-                                                            {item.note || '---'}
+                                                        <td className="px-4 py-3 text-slate-600 text-xs italic max-w-xs truncate" title={item.note}>
+                                                            "{item.note || 'Không có lời nhắn'}"
                                                         </td>
                                                     </tr>
                                                 );
