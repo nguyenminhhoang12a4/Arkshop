@@ -6,7 +6,7 @@ import {
     CalculatorIcon, ClipboardDocumentIcon, PlusCircleIcon, TrashIcon,
     CheckCircleIcon, XCircleIcon, ArrowPathIcon, UserGroupIcon, MagnifyingGlassIcon,
     CurrencyDollarIcon, QrCodeIcon, XMarkIcon, ArrowDownTrayIcon, ArrowsRightLeftIcon,
-    UserCircleIcon // Icon mới cho user
+    UserCircleIcon, PaperAirplaneIcon // Thêm icon
 } from '@heroicons/react/24/solid';
 
 // --- HÀM HELPER: Lấy mã ngân hàng chuẩn cho VietQR ---
@@ -98,14 +98,13 @@ export default function CardPage() {
 
   // --- STATE CHUYỂN TIỀN ---
   const [transferForm, setTransferForm] = useState({ email: '', amount: '', note: '' });
-  // 🔥 State mới cho Gợi ý người nhận
   const [recipientSuggestions, setRecipientSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedRecipient, setSelectedRecipient] = useState(null);
-  const searchTimeoutRef = useRef(null); // Dùng để debounce
+  const searchTimeoutRef = useRef(null); 
 
-  // State lịch sử
-  const [history, setHistory] = useState({ cards: [], withdraws: [] });
+  // State lịch sử (Thêm transfers)
+  const [history, setHistory] = useState({ cards: [], withdraws: [], transfers: [] });
 
   // State Admin
   const [adminSearchTerm, setAdminSearchTerm] = useState('');
@@ -182,11 +181,29 @@ export default function CardPage() {
       }
   };
 
+  // 🔥 CẬP NHẬT HÀM LẤY LỊCH SỬ ĐỂ LẤY CẢ CHUYỂN TIỀN 🔥
   const fetchHistory = async () => {
     try {
         const { data: cards } = await supabase.from('card_transactions').select('*').order('created_at', { ascending: false }).limit(20);
         const { data: withdraws } = await supabase.from('withdraw_requests').select('*').order('created_at', { ascending: false }).limit(20);
-        setHistory({ cards: cards || [], withdraws: withdraws || [] });
+        
+        // Lấy lịch sử chuyển tiền (Mình gửi đi HOẶC mình nhận được)
+        const { data: transfers } = await supabase
+            .from('transfer_logs')
+            .select(`
+                *,
+                sender:sender_id(character_name, email),
+                receiver:receiver_id(character_name, email)
+            `)
+            .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
+            .order('created_at', { ascending: false })
+            .limit(20);
+
+        setHistory({ 
+            cards: cards || [], 
+            withdraws: withdraws || [], 
+            transfers: transfers || [] 
+        });
     } catch (error) {
         console.error("Lỗi tải lịch sử:", error);
     }
@@ -241,12 +258,10 @@ export default function CardPage() {
       const value = keyword;
       setTransferForm(prev => ({ ...prev, email: value }));
       
-      // Nếu đang có user đã chọn mà sửa lại email -> Bỏ chọn
       if (selectedRecipient && selectedRecipient.email !== value) {
           setSelectedRecipient(null);
       }
 
-      // Debounce search
       if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
 
       if (value.length < 2) {
@@ -258,22 +273,26 @@ export default function CardPage() {
       searchTimeoutRef.current = setTimeout(async () => {
           try {
               const { data, error } = await supabase.rpc('search_transfer_recipient', { p_keyword: value });
-              if (!error && data) {
-                  // Lọc bỏ chính mình khỏi gợi ý
-                  const filtered = data.filter(u => u.email !== user.email);
-                  setRecipientSuggestions(filtered);
-                  setShowSuggestions(true); // Luôn show để hiển thị "Không tìm thấy" nếu rỗng
+              
+              if (error) {
+                  console.error("Search error:", error);
+                  return;
               }
+              
+              const resultList = data || [];
+              const filtered = resultList.filter(u => u.email !== user.email);
+              setRecipientSuggestions(filtered);
+              setShowSuggestions(true); 
           } catch (err) {
               console.error(err);
           }
-      }, 400); // Delay 400ms
+      }, 400);
   };
 
   const handleSelectRecipient = (recipient) => {
       setTransferForm(prev => ({ ...prev, email: recipient.email }));
       setSelectedRecipient(recipient);
-      setShowSuggestions(false); // Ẩn gợi ý
+      setShowSuggestions(false);
   };
 
   const handleTransferSubmit = async (e) => {
@@ -282,10 +301,7 @@ export default function CardPage() {
     const amount = parseInt(transferForm.amount);
 
     if (!transferForm.email) return alert("Vui lòng nhập email người nhận");
-    
-    // 👇 SỬA: Tối thiểu 1.000 VNĐ
     if (amount < 1000) return alert("Số tiền chuyển tối thiểu là 1.000 VNĐ");
-    
     if (amount + transferFee > balance) return alert(`Số dư không đủ! (Cần: ${formatCurrency(amount + transferFee)})`);
 
     const recipientName = selectedRecipient ? selectedRecipient.character_name : transferForm.email;
@@ -514,7 +530,7 @@ export default function CardPage() {
                     </div>
                 )}
 
-                {/* --- TAB CHUYỂN TIỀN (MỚI - CÓ GỢI Ý) --- */}
+                {/* --- TAB CHUYỂN TIỀN (MỚI - CÓ GỢI Ý & THÔNG BÁO KHÔNG TÌM THẤY) --- */}
                 {activeTab === 'transfer' && (
                     <form onSubmit={handleTransferSubmit} className="space-y-6 max-w-lg mx-auto animate-fade-in">
                         <div className="bg-blue-50 border-l-4 border-blue-600 p-4 rounded-r-lg">
@@ -551,12 +567,13 @@ export default function CardPage() {
                                                     <div>
                                                         <p className="font-bold text-slate-800 text-sm">{recipient.character_name}</p>
                                                         <p className="text-xs text-slate-500">{recipient.email}</p>
+                                                        <p className="text-[10px] text-slate-400">Zalo: {recipient.zalo_contact}</p>
                                                     </div>
                                                     <span className="ml-auto text-[10px] font-bold bg-slate-100 text-slate-600 px-2 py-1 rounded uppercase">{recipient.server}</span>
                                                 </div>
                                             ))
                                         ) : (
-                                            // 🔥 CẬP NHẬT: HIỂN THỊ THÔNG BÁO KHÔNG TÌM THẤY 🔥
+                                            // 🔥 THÔNG BÁO KHÔNG TÌM THẤY 🔥
                                             <div className="p-3 text-slate-500 text-sm italic text-center bg-slate-50">
                                                 Không tìm thấy người chơi nào có tên gần giống.
                                             </div>
@@ -619,6 +636,65 @@ export default function CardPage() {
 
                 {activeTab === 'history' && (
                     <div className="space-y-8 animate-fade-in">
+                        {/* 🔥 LỊCH SỬ CHUYỂN TIỀN (MỚI) 🔥 */}
+                        <div>
+                            <h3 className="font-bold text-lg text-purple-800 border-l-4 border-purple-600 pl-3 mb-4">Lịch Sử Chuyển Tiền</h3>
+                            <div className="overflow-x-auto border border-slate-200 rounded-lg shadow-sm">
+                                <table className="min-w-full text-sm text-left">
+                                    <thead className="bg-slate-100 text-slate-700 font-bold uppercase text-xs border-b border-slate-200">
+                                        <tr>
+                                            <th className="px-4 py-3 whitespace-nowrap">Thời gian</th>
+                                            <th className="px-4 py-3 whitespace-nowrap">Loại</th>
+                                            <th className="px-4 py-3 whitespace-nowrap">Người liên quan</th>
+                                            <th className="px-4 py-3 text-right whitespace-nowrap">Số tiền</th>
+                                            <th className="px-4 py-3 whitespace-nowrap">Lời nhắn</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-200">
+                                        {history.transfers && history.transfers.length > 0 ? (
+                                            history.transfers.map(item => {
+                                                const isSender = item.sender_id === user.id;
+                                                return (
+                                                    <tr key={item.id} className="bg-white hover:bg-purple-50 transition-colors">
+                                                        <td className="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">{new Date(item.created_at).toLocaleString('vi-VN')}</td>
+                                                        <td className="px-4 py-3">
+                                                            {isSender ? (
+                                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-200">
+                                                                    <PaperAirplaneIcon className="w-3 h-3 mr-1 transform -rotate-45"/> Chuyển đi
+                                                                </span>
+                                                            ) : (
+                                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
+                                                                    <ArrowDownTrayIcon className="w-3 h-3 mr-1"/> Nhận tiền
+                                                                </span>
+                                                            )}
+                                                        </td>
+                                                        <td className="px-4 py-3">
+                                                            <div className="flex flex-col">
+                                                                <span className="font-bold text-slate-700">
+                                                                    {isSender ? (item.receiver ? item.receiver.character_name : 'Unknown') : (item.sender ? item.sender.character_name : 'Unknown')}
+                                                                </span>
+                                                                <span className="text-xs text-slate-500">
+                                                                    {isSender ? (item.receiver ? item.receiver.email : '') : (item.sender ? item.sender.email : '')}
+                                                                </span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-4 py-3 text-right font-bold whitespace-nowrap">
+                                                            <span className={isSender ? 'text-red-600' : 'text-green-600'}>
+                                                                {isSender ? '-' : '+'}{formatCurrency(item.amount)}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-4 py-3 text-slate-600 italic max-w-xs truncate" title={item.note}>
+                                                            {item.note || '---'}
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })
+                                        ) : (<tr><td colSpan="5" className="p-8 text-center text-slate-500 italic">Chưa có giao dịch chuyển tiền nào</td></tr>)}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
                         <div>
                             <h3 className="font-bold text-lg text-blue-800 border-l-4 border-blue-600 pl-3 mb-4">Lịch Sử Nạp Thẻ</h3>
                             <div className="overflow-x-auto border border-slate-200 rounded-lg shadow-sm"><table className="min-w-full text-sm text-left"><thead className="bg-slate-100 text-slate-700 font-bold uppercase text-xs border-b border-slate-200"><tr><th className="px-4 py-3 whitespace-nowrap">Thời gian</th><th className="px-4 py-3 whitespace-nowrap">Nhà mạng</th><th className="px-4 py-3 whitespace-nowrap">Thông tin thẻ</th><th className="px-4 py-3 text-right whitespace-nowrap">Mệnh giá</th><th className="px-4 py-3 text-right whitespace-nowrap">Thực nhận</th><th className="px-4 py-3 text-center whitespace-nowrap">Trạng thái</th></tr></thead><tbody className="divide-y divide-slate-200">{history.cards.map(item => (<tr key={item.id} className="bg-white hover:bg-blue-50 transition-colors"><td className="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">{new Date(item.created_at).toLocaleString('vi-VN')}</td><td className="px-4 py-3"><span className="font-bold text-blue-700 bg-blue-50 px-2 py-1 rounded border border-blue-100 text-xs">{item.telco}</span></td><td className="px-4 py-3"><div className="flex flex-col gap-1"><div className="text-xs text-slate-600"><span className="font-semibold text-slate-400 inline-block w-10">Mã:</span> <span className="font-mono font-medium select-all">{item.code}</span></div><div className="text-xs text-slate-600"><span className="font-semibold text-slate-400 inline-block w-10">Seri:</span> <span className="font-mono font-medium select-all">{item.serial}</span></div></div></td><td className="px-4 py-3 text-right font-medium text-slate-600 whitespace-nowrap">{formatCurrency(item.declared_amount)}</td><td className="px-4 py-3 text-right whitespace-nowrap">{item.received_amount > 0 ? <span className="font-bold text-green-600">+{formatCurrency(item.received_amount)}</span> : <span className="text-slate-300">-</span>}</td><td className="px-4 py-3 text-center align-middle whitespace-nowrap">{item.status === 'success' && <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">✅ Thẻ đúng</span>}{item.status === 'pending' && <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200 animate-pulse">⏳ Đang xử lý...</span>}{item.status === 'wrong_amount' && <div className="flex flex-col items-center"><span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 border border-yellow-200">⚠️ Sai mệnh giá</span><span className="text-[10px] text-yellow-600 mt-1">Phạt còn 1.000đ</span></div>}{item.status === 'failed' && <div className="flex flex-col items-center"><span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-200">❌ Thất bại</span><span className="text-[10px] text-red-500 mt-1 max-w-[150px] truncate" title={item.message}>{item.message || 'Thẻ sai/Đã dùng'}</span></div>}</td></tr>))}</tbody></table></div>
@@ -630,6 +706,7 @@ export default function CardPage() {
                     </div>
                 )}
 
+                {/* ... (Các tab Admin giữ nguyên) ... */}
                 {activeTab === 'admin_money' && profile?.role === 'admin' && (
                     <div className="animate-fade-in space-y-6">
                         <div className="flex flex-col sm:flex-row gap-2 mb-4"><div className="relative flex-1"><MagnifyingGlassIcon className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" /><input type="text" placeholder="Tìm tên, email..." className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg focus:border-red-500 focus:ring-1 focus:ring-red-500 outline-none" value={adminSearchTerm} onChange={(e) => setAdminSearchTerm(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSearchUsers(1)} /></div><button onClick={() => handleSearchUsers(1)} className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-bold">Tìm Kiếm</button></div>
