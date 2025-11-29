@@ -592,10 +592,6 @@ export const EventPage = () => {
         </h2>
 
         <div className="grid md:grid-cols-2 gap-6 mb-6">
-            <div className="bg-gradient-to-r from-emerald-700 to-green-800 p-6 rounded-lg shadow-lg border border-emerald-500 text-center transform hover:scale-105 transition-transform duration-300">
-                <p className="text-2xl font-bold text-white">20 ĐIỂM</p>
-                <p className="text-xl text-gray-200 mt-1">🎁 1 VAULT bv 292 bv 🎁</p>
-            </div>
             <div className="bg-gradient-to-r from-yellow-700 to-orange-800 p-6 rounded-lg shadow-lg border border-yellow-500 text-center transform hover:scale-105 transition-transform duration-300">
                 <p className="text-2xl font-bold text-white">30 ĐIỂM</p>
                 <p className="text-xl text-gray-200 mt-1">🎁 1 THÁNG FREE PASS AD 🎁</p>
@@ -634,7 +630,6 @@ export const EventPage = () => {
             <h3 className="text-xl font-bold text-yellow-400 border-b border-gray-600 pb-2 mb-3">Mốc 5-10 Điểm</h3>
             <p><span className="font-bold text-emerald-400">5đ</span> = 1 bv tự chọn</p>
             <p><span className="font-bold text-emerald-400">5đ</span> = 1 thú đột biến ramdon (lv 538 + 60lv)</p>
-            <p><span className="font-bold text-emerald-400">5đ</span> = alpha raptor lv</p>
             <p><span className="font-bold text-emerald-400">5đ</span> = 1 bv tự chọn ( tek, tele, súng tek,…)</p>
             <div className="border-t border-gray-700 my-4"></div>
             <p><span className="font-bold text-emerald-400">6đ</span> = 1 thú đột biến tự chọn (lv 538 + 60lv)</p>
