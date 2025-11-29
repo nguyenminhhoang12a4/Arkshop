@@ -1,18 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabaseClient';
 import { 
     BanknotesIcon, ClockIcon, CreditCardIcon, 
     CalculatorIcon, ClipboardDocumentIcon, PlusCircleIcon, TrashIcon,
     CheckCircleIcon, XCircleIcon, ArrowPathIcon, UserGroupIcon, MagnifyingGlassIcon,
-    CurrencyDollarIcon, QrCodeIcon, XMarkIcon, ArrowDownTrayIcon
+    CurrencyDollarIcon, QrCodeIcon, XMarkIcon, ArrowDownTrayIcon, ArrowsRightLeftIcon,
+    UserCircleIcon // Icon mới cho user
 } from '@heroicons/react/24/solid';
 
 // --- HÀM HELPER: Lấy mã ngân hàng chuẩn cho VietQR ---
 const getBankId = (bankName) => {
     if (!bankName) return 'VCB';
     const name = bankName.toLowerCase();
-    
     if (name.includes('vietcombank')) return 'VCB';
     if (name.includes('bidv')) return 'BIDV';
     if (name.includes('vietinbank')) return 'ICB';
@@ -27,7 +27,7 @@ const getBankId = (bankName) => {
     if (name.includes('eximbank')) return 'EIB';
     if (name.includes('seabank')) return 'SEAB';
     if (name.includes('vib')) return 'VIB';
-    if (name.includes('msb') || name.includes('maritime')) return 'MSB';
+    if (name.includes('msb')) return 'MSB';
     if (name.includes('shb')) return 'SHB';
     if (name.includes('ocb')) return 'OCB';
     if (name.includes('hdbank')) return 'HDB';
@@ -36,13 +36,13 @@ const getBankId = (bankName) => {
     if (name.includes('vietbank')) return 'VIETBANK';
     if (name.includes('abbank')) return 'ABB';
     if (name.includes('kienlong')) return 'KLB';
-    if (name.includes('bvbank') || name.includes('ban viet')) return 'BVB';
+    if (name.includes('bvbank')) return 'BVB';
     if (name.includes('pvcom')) return 'PVCOMBANK';
     if (name.includes('ocean')) return 'OJB';
     if (name.includes('ncb')) return 'NCB';
     if (name.includes('shinhan')) return 'SHINHAN';
     if (name.includes('scb')) return 'SCB';
-    if (name.includes('vieta') || name.includes('vab')) return 'VAB';
+    if (name.includes('vieta')) return 'VAB';
     if (name.includes('gpbank')) return 'GPB';
     if (name.includes('pgbank')) return 'PGB';
     if (name.includes('public')) return 'PBVN';
@@ -55,10 +55,8 @@ const getBankId = (bankName) => {
     if (name.includes('lio')) return 'LIOBANK';
     if (name.includes('viettel')) return 'VTLMONEY';
     if (name.includes('vnpt')) return 'VNPTMONEY';
-    
     if (name.includes('momo')) return 'MOMO'; 
     if (name.includes('zalopay')) return 'ZALOPAY';
-
     return 'VCB'; 
 };
 
@@ -86,6 +84,9 @@ export default function CardPage() {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null); 
 
+  // State Phí chuyển tiền
+  const [transferFee, setTransferFee] = useState(0);
+
   // State Nạp thẻ
   const [cardsList, setCardsList] = useState([
     { id: 1, telco: 'VIETTEL', amount: '10000', code: '', serial: '', status: 'idle', msg: '' }
@@ -94,6 +95,14 @@ export default function CardPage() {
   // Form Rút tiền
   const [withdrawForm, setWithdrawForm] = useState({ bank_name: '', account_number: '', account_name: '', amount: '' });
   const [isAutoFilled, setIsAutoFilled] = useState(false);
+
+  // --- STATE CHUYỂN TIỀN ---
+  const [transferForm, setTransferForm] = useState({ email: '', amount: '', note: '' });
+  // 🔥 State mới cho Gợi ý người nhận
+  const [recipientSuggestions, setRecipientSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedRecipient, setSelectedRecipient] = useState(null);
+  const searchTimeoutRef = useRef(null); // Dùng để debounce
 
   // State lịch sử
   const [history, setHistory] = useState({ cards: [], withdraws: [] });
@@ -108,14 +117,14 @@ export default function CardPage() {
   const [hasMore, setHasMore] = useState(true);
   const [adminWithdrawList, setAdminWithdrawList] = useState([]);
 
-  // --- STATE MODAL QR CODE ---
+  // State Modal QR
   const [qrModalOpen, setQrModalOpen] = useState(false);
   const [qrData, setQrData] = useState(null);
-  // 🔥 State mới: quản lý trạng thái đang tải ảnh
   const [isDownloadingQr, setIsDownloadingQr] = useState(false);
 
   useEffect(() => {
     fetchUserAndBalance();
+    fetchSystemFee();
   }, []);
 
   useEffect(() => {
@@ -137,6 +146,15 @@ export default function CardPage() {
           setProfile(data); 
       }
     }
+  };
+
+  const fetchSystemFee = async () => {
+      const { data } = await supabase
+        .from('system_settings')
+        .select('value')
+        .eq('key', 'transfer_fee')
+        .single();
+      if (data) setTransferFee(data.value);
   };
 
   const fetchLastWithdrawalInfo = async () => {
@@ -179,7 +197,6 @@ export default function CardPage() {
   const removeCardRow = (index) => { if (cardsList.length === 1) return; const newList = [...cardsList]; newList.splice(index, 1); setCardsList(newList); };
   const updateCardRow = (index, field, value) => { const newList = [...cardsList]; newList[index][field] = value; if (field === 'code' || field === 'serial') { newList[index].status = 'idle'; newList[index].msg = ''; } setCardsList(newList); };
   const handlePaste = async (index, field) => { try { const text = await navigator.clipboard.readText(); if (text) updateCardRow(index, field, text); } catch (err) { alert('Lỗi paste'); } };
-  
   const handleBulkSubmit = async (e) => {
     e.preventDefault();
     if (!user) { if (confirm("Đăng nhập ngay?")) navigate('/login'); return; }
@@ -204,7 +221,6 @@ export default function CardPage() {
     if (successCount > 0) { alert(`Gửi thành công ${successCount} thẻ!`); fetchUserAndBalance(); }
   };
   const resetForm = () => setCardsList([{ id: Date.now(), telco: 'VIETTEL', amount: '10000', code: '', serial: '', status: 'idle', msg: '' }]);
-
   const handleWithdrawSubmit = async (e) => {
     e.preventDefault();
     if (!user) { alert("Cần đăng nhập."); navigate('/login'); return; }
@@ -218,6 +234,81 @@ export default function CardPage() {
         setWithdrawForm(prev => ({ ...prev, amount: '' })); 
         fetchUserAndBalance();
     } catch (err) { alert("Lỗi: " + err.message); } finally { setLoading(false); }
+  };
+
+  // --- 🔥 LOGIC TÌM NGƯỜI NHẬN (CHUYỂN TIỀN) 🔥 ---
+  const handleRecipientSearch = (keyword) => {
+      const value = keyword;
+      setTransferForm(prev => ({ ...prev, email: value }));
+      
+      // Nếu đang có user đã chọn mà sửa lại email -> Bỏ chọn
+      if (selectedRecipient && selectedRecipient.email !== value) {
+          setSelectedRecipient(null);
+      }
+
+      // Debounce search
+      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+
+      if (value.length < 2) {
+          setRecipientSuggestions([]);
+          setShowSuggestions(false);
+          return;
+      }
+
+      searchTimeoutRef.current = setTimeout(async () => {
+          try {
+              const { data, error } = await supabase.rpc('search_transfer_recipient', { p_keyword: value });
+              if (!error && data) {
+                  // Lọc bỏ chính mình khỏi gợi ý
+                  const filtered = data.filter(u => u.email !== user.email);
+                  setRecipientSuggestions(filtered);
+                  setShowSuggestions(true); // Luôn show để hiển thị "Không tìm thấy" nếu rỗng
+              }
+          } catch (err) {
+              console.error(err);
+          }
+      }, 400); // Delay 400ms
+  };
+
+  const handleSelectRecipient = (recipient) => {
+      setTransferForm(prev => ({ ...prev, email: recipient.email }));
+      setSelectedRecipient(recipient);
+      setShowSuggestions(false); // Ẩn gợi ý
+  };
+
+  const handleTransferSubmit = async (e) => {
+    e.preventDefault();
+    if (!user) return alert("Vui lòng đăng nhập!");
+    const amount = parseInt(transferForm.amount);
+
+    if (!transferForm.email) return alert("Vui lòng nhập email người nhận");
+    
+    // 👇 SỬA: Tối thiểu 1.000 VNĐ
+    if (amount < 1000) return alert("Số tiền chuyển tối thiểu là 1.000 VNĐ");
+    
+    if (amount + transferFee > balance) return alert(`Số dư không đủ! (Cần: ${formatCurrency(amount + transferFee)})`);
+
+    const recipientName = selectedRecipient ? selectedRecipient.character_name : transferForm.email;
+    if (!confirm(`Chuyển ${formatCurrency(amount)} cho ${recipientName}?\n(Phí: ${formatCurrency(transferFee)})`)) return;
+
+    setLoading(true);
+    try {
+        const { data, error } = await supabase.rpc('transfer_money', {
+            p_receiver_email: transferForm.email.trim(),
+            p_amount: amount,
+            p_note: transferForm.note
+        });
+
+        if (error) throw error;
+        alert(data.message);
+        setTransferForm({ email: '', amount: '', note: '' });
+        setSelectedRecipient(null);
+        fetchUserAndBalance();
+    } catch (err) {
+        alert("Lỗi: " + err.message);
+    } finally {
+        setLoading(false);
+    }
   };
 
   // --- ADMIN FUNCTIONS ---
@@ -270,42 +361,25 @@ export default function CardPage() {
       setQrModalOpen(true);
   };
 
-  // --- 🔥 HÀM TẢI ẢNH QR (ĐÃ NÂNG CẤP CHO MOBILE) 🔥 ---
   const handleDownloadQr = async () => {
       if (!qrData?.url) return;
       setIsDownloadingQr(true);
-
       try {
-          // Bước 1: Thử fetch ảnh về dạng blob
           const response = await fetch(qrData.url);
           if (!response.ok) throw new Error('Network error');
           const blob = await response.blob();
-          
-          // Bước 2: Tạo URL object
           const url = window.URL.createObjectURL(blob);
           const link = document.createElement('a');
           link.href = url;
           link.download = `QR_ChuyenKhoan_${qrData.info.amount}.png`;
           document.body.appendChild(link);
-          
-          // Bước 3: Kích hoạt tải xuống
           link.click();
-          
-          // Dọn dẹp
           document.body.removeChild(link);
           window.URL.revokeObjectURL(url);
-          
       } catch (error) {
-          console.error('Lỗi tải ảnh tự động:', error);
-          
-          // 🔥 FALLBACK CHO MOBILE (iOS/Android chặn download trực tiếp) 🔥
-          // Mở ảnh trong tab mới để người dùng có thể nhấn giữ -> Lưu ảnh
           const win = window.open(qrData.url, '_blank');
-          if (win) {
-              alert("Trên điện thoại: Hãy NHẤN GIỮ vào ảnh QR đang mở để chọn 'Lưu vào Ảnh' nhé!");
-          } else {
-              alert("Vui lòng cho phép mở cửa sổ bật lên (Popup) để xem ảnh QR.");
-          }
+          if (win) alert("Trên điện thoại: Hãy NHẤN GIỮ vào ảnh QR đang mở để chọn 'Lưu vào Ảnh' nhé!");
+          else alert("Vui lòng cho phép mở cửa sổ bật lên (Popup) để xem ảnh QR.");
       } finally {
           setIsDownloadingQr(false);
       }
@@ -328,87 +402,37 @@ export default function CardPage() {
       {qrModalOpen && qrData && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 animate-fade-in" onClick={() => setQrModalOpen(false)}>
             <div className="bg-white rounded-2xl max-w-md w-full overflow-hidden shadow-2xl relative" onClick={e => e.stopPropagation()}>
-                {/* Header Modal */}
                 <div className="bg-blue-600 p-4 text-white flex justify-between items-center">
                     <h3 className="font-bold text-lg flex items-center gap-2">
                         <QrCodeIcon className="w-6 h-6" /> Quét Mã Chuyển Khoản
                     </h3>
                     <button onClick={() => setQrModalOpen(false)} className="hover:bg-blue-700 p-1 rounded"><XMarkIcon className="w-6 h-6" /></button>
                 </div>
-
                 <div className="p-6">
-                    {/* QR Image */}
                     <div className="flex justify-center mb-6">
                         <div className="bg-white p-2 border-2 border-slate-200 rounded-xl shadow-sm">
                             <img src={qrData.url} alt="QR Code" className="w-56 h-56 object-contain" />
-                            
-                            {/* 🔥 NÚT TẢI ẢNH CẢI TIẾN 🔥 */}
-                            <button 
-                                onClick={handleDownloadQr}
-                                disabled={isDownloadingQr}
-                                className={`w-full mt-2 text-xs font-bold flex items-center justify-center gap-1 py-2 rounded transition-colors ${
-                                    isDownloadingQr 
-                                    ? 'bg-gray-100 text-gray-400 cursor-wait' 
-                                    : 'text-blue-600 hover:bg-blue-50 hover:underline'
-                                }`}
-                            >
-                                {isDownloadingQr ? (
-                                    <>
-                                        <ArrowPathIcon className="w-3 h-3 animate-spin" /> Đang xử lý...
-                                    </>
-                                ) : (
-                                    <>
-                                        <ArrowDownTrayIcon className="w-3 h-3" /> Tải ảnh QR về máy
-                                    </>
-                                )}
+                            <button onClick={handleDownloadQr} disabled={isDownloadingQr} className={`w-full mt-2 text-xs font-bold flex items-center justify-center gap-1 py-2 rounded transition-colors ${isDownloadingQr ? 'bg-gray-100 text-gray-400 cursor-wait' : 'text-blue-600 hover:bg-blue-50 hover:underline'}`}>
+                                {isDownloadingQr ? <><ArrowPathIcon className="w-3 h-3 animate-spin" /> Đang xử lý...</> : <><ArrowDownTrayIcon className="w-3 h-3" /> Tải ảnh QR về máy</>}
                             </button>
                         </div>
                     </div>
-
-                    {/* Quick Actions (Nút Copy) */}
                     <div className="space-y-3">
                         <div className="flex items-center gap-2">
-                            <div className="flex-1 bg-slate-50 p-3 rounded-lg border border-slate-200">
-                                <p className="text-xs text-slate-500 uppercase font-bold">Số tài khoản</p>
-                                <p className="text-lg font-mono font-bold text-slate-800">{qrData.info.account_number}</p>
-                            </div>
-                            <button 
-                                onClick={() => handleCopy(qrData.info.account_number)}
-                                className="bg-blue-100 text-blue-700 p-3 rounded-lg hover:bg-blue-200 font-bold text-sm whitespace-nowrap"
-                            >
-                                Copy
-                            </button>
+                            <div className="flex-1 bg-slate-50 p-3 rounded-lg border border-slate-200"><p className="text-xs text-slate-500 uppercase font-bold">Số tài khoản</p><p className="text-lg font-mono font-bold text-slate-800">{qrData.info.account_number}</p></div>
+                            <button onClick={() => handleCopy(qrData.info.account_number)} className="bg-blue-100 text-blue-700 p-3 rounded-lg hover:bg-blue-200 font-bold text-sm whitespace-nowrap">Copy</button>
                         </div>
-
                         <div className="flex items-center gap-2">
-                            <div className="flex-1 bg-slate-50 p-3 rounded-lg border border-slate-200">
-                                <p className="text-xs text-slate-500 uppercase font-bold">Số tiền</p>
-                                <p className="text-lg font-bold text-red-600">{formatCurrency(qrData.info.amount)}</p>
-                            </div>
-                            <button 
-                                onClick={() => handleCopy(qrData.info.amount)}
-                                className="bg-red-100 text-red-700 p-3 rounded-lg hover:bg-red-200 font-bold text-sm whitespace-nowrap"
-                            >
-                                Copy
-                            </button>
+                            <div className="flex-1 bg-slate-50 p-3 rounded-lg border border-slate-200"><p className="text-xs text-slate-500 uppercase font-bold">Số tiền</p><p className="text-lg font-bold text-red-600">{formatCurrency(qrData.info.amount)}</p></div>
+                            <button onClick={() => handleCopy(qrData.info.amount)} className="bg-red-100 text-red-700 p-3 rounded-lg hover:bg-red-200 font-bold text-sm whitespace-nowrap">Copy</button>
                         </div>
-
                         <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
-                             <div className="flex justify-between items-center mb-1">
-                                 <p className="text-xs text-slate-500 uppercase font-bold">Ngân hàng</p>
-                                 <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">{qrData.info.bank_name}</span>
-                             </div>
+                             <div className="flex justify-between items-center mb-1"><p className="text-xs text-slate-500 uppercase font-bold">Ngân hàng</p><span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">{qrData.info.bank_name}</span></div>
                              <p className="text-sm font-bold text-slate-800 uppercase">{qrData.info.account_name}</p>
                         </div>
                     </div>
-                    
                     <div className="mt-6 text-center">
-                        <button 
-                            onClick={() => setQrModalOpen(false)}
-                            className="w-full py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200"
-                        >
-                            Đóng
-                        </button>
+                        <button onClick={() => setQrModalOpen(false)} className="w-full py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200">Đóng</button>
                     </div>
                 </div>
             </div>
@@ -436,13 +460,16 @@ export default function CardPage() {
 
         {/* Main Content */}
         <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-slate-200">
-            <div className="grid grid-cols-3 sm:grid-cols-5 border-b-2 border-slate-100">
-                {['deposit', 'withdraw', 'history'].map((tab) => (
+            <div className="grid grid-cols-4 sm:grid-cols-6 border-b-2 border-slate-100">
+                {['deposit', 'transfer', 'withdraw', 'history'].map((tab) => (
                     <button key={tab} onClick={() => setActiveTab(tab)} className={`py-4 font-bold text-xs sm:text-sm uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${activeTab === tab ? 'bg-white text-blue-700 border-b-4 border-blue-700 shadow-inner' : 'bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-700'}`}>
                         {tab === 'deposit' && <CreditCardIcon className="w-5 h-5" />}
+                        {tab === 'transfer' && <ArrowsRightLeftIcon className="w-5 h-5" />}
                         {tab === 'withdraw' && <BanknotesIcon className="w-5 h-5" />}
                         {tab === 'history' && <ClockIcon className="w-5 h-5" />}
-                        <span className="hidden sm:inline">{tab === 'deposit' ? 'Nạp Thẻ' : tab === 'withdraw' ? 'Rút Tiền' : 'Lịch Sử'}</span>
+                        <span className="hidden sm:inline">
+                            {tab === 'deposit' ? 'Nạp Thẻ' : tab === 'transfer' ? 'Chuyển Tiền' : tab === 'withdraw' ? 'Rút Tiền' : 'Lịch Sử'}
+                        </span>
                     </button>
                 ))}
                 {profile?.role === 'admin' && (
@@ -487,7 +514,92 @@ export default function CardPage() {
                     </div>
                 )}
 
-                {/* --- TAB RÚT TIỀN (CẬP NHẬT AUTO-FILL) --- */}
+                {/* --- TAB CHUYỂN TIỀN (MỚI - CÓ GỢI Ý) --- */}
+                {activeTab === 'transfer' && (
+                    <form onSubmit={handleTransferSubmit} className="space-y-6 max-w-lg mx-auto animate-fade-in">
+                        <div className="bg-blue-50 border-l-4 border-blue-600 p-4 rounded-r-lg">
+                             <h4 className="font-bold text-blue-800 uppercase text-sm mb-1">Chuyển tiền nội bộ</h4>
+                             <p className="text-blue-700 text-sm">Chuyển tiền cho thành viên khác trong hệ thống.</p>
+                        </div>
+                        
+                        <div className="space-y-4">
+                             {/* 🔥 INPUT EMAIL CÓ GỢI Ý 🔥 */}
+                             <div className="relative">
+                                <label className="block text-sm font-bold text-slate-700 mb-1">Email hoặc Tên người nhận</label>
+                                <input 
+                                    type="text" 
+                                    placeholder="Nhập email, tên nhân vật..." 
+                                    required 
+                                    className="w-full p-3 border border-slate-300 rounded-lg focus:border-blue-500 outline-none text-slate-900" 
+                                    value={transferForm.email} 
+                                    onChange={e => handleRecipientSearch(e.target.value)}
+                                />
+                                
+                                {/* Dropdown Gợi ý */}
+                                {showSuggestions && (
+                                    <div className="absolute z-10 w-full bg-white border border-slate-200 rounded-lg shadow-xl mt-1 max-h-60 overflow-y-auto">
+                                        {recipientSuggestions.length > 0 ? (
+                                            recipientSuggestions.map((recipient, idx) => (
+                                                <div 
+                                                    key={idx}
+                                                    onClick={() => handleSelectRecipient(recipient)}
+                                                    className="p-3 hover:bg-blue-50 cursor-pointer border-b border-slate-100 last:border-0 flex items-center gap-3 transition-colors"
+                                                >
+                                                    <div className="bg-blue-100 p-2 rounded-full">
+                                                        <UserCircleIcon className="w-6 h-6 text-blue-600" />
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-bold text-slate-800 text-sm">{recipient.character_name}</p>
+                                                        <p className="text-xs text-slate-500">{recipient.email}</p>
+                                                    </div>
+                                                    <span className="ml-auto text-[10px] font-bold bg-slate-100 text-slate-600 px-2 py-1 rounded uppercase">{recipient.server}</span>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            // 🔥 CẬP NHẬT: HIỂN THỊ THÔNG BÁO KHÔNG TÌM THẤY 🔥
+                                            <div className="p-3 text-slate-500 text-sm italic text-center bg-slate-50">
+                                                Không tìm thấy người chơi nào có tên gần giống.
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                             </div>
+
+                             {/* 🔥 THẺ XÁC NHẬN NGƯỜI NHẬN 🔥 */}
+                             {selectedRecipient && (
+                                 <div className="bg-green-50 border border-green-200 p-3 rounded-lg flex items-center gap-3 animate-fade-in">
+                                     <div className="bg-green-100 p-2 rounded-full">
+                                         <CheckCircleIcon className="w-6 h-6 text-green-600" />
+                                     </div>
+                                     <div>
+                                         <p className="text-xs text-green-800 font-bold uppercase">Người nhận đã chọn:</p>
+                                         <p className="font-bold text-slate-800">{selectedRecipient.character_name}</p>
+                                         <p className="text-xs text-slate-500">Server: {selectedRecipient.server} | Zalo: {selectedRecipient.zalo_contact}</p>
+                                     </div>
+                                 </div>
+                             )}
+
+                             <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-1">Số tiền chuyển</label>
+                                <div className="relative">
+                                    <input type="number" placeholder="Nhập số tiền..." required className="w-full p-3 pr-16 border border-slate-300 rounded-lg focus:border-blue-500 outline-none text-xl font-bold text-green-600" value={transferForm.amount} onChange={e => setTransferForm({...transferForm, amount: e.target.value})} />
+                                    <span className="absolute right-4 top-1/2 -translate-y-1/2 font-bold text-slate-500 text-sm">VNĐ</span>
+                                </div>
+                                <div className="flex justify-between mt-2 text-xs font-medium text-slate-500">
+                                    <span>Phí chuyển tiền:</span>
+                                    <span className="text-red-500">{transferFee === 0 ? 'Miễn phí' : formatCurrency(transferFee)}</span>
+                                </div>
+                             </div>
+                             <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-1">Lời nhắn</label>
+                                <textarea placeholder="Nội dung chuyển tiền..." className="w-full p-3 border border-slate-300 rounded-lg focus:border-blue-500 outline-none text-slate-900" rows="2" value={transferForm.note} onChange={e => setTransferForm({...transferForm, note: e.target.value})} />
+                             </div>
+                        </div>
+                        <button disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-lg shadow-lg text-lg transition-transform active:scale-95 mt-4">{loading ? 'ĐANG XỬ LÝ...' : 'XÁC NHẬN CHUYỂN TIỀN'}</button>
+                    </form>
+                )}
+
+                {/* --- TAB RÚT TIỀN --- */}
                 {activeTab === 'withdraw' && (
                     <form onSubmit={handleWithdrawSubmit} className="space-y-6 max-w-lg mx-auto animate-fade-in">
                         {isAutoFilled && (

@@ -286,19 +286,19 @@ export const HomePage = () => {
         <div className="grid md:grid-cols-2 gap-8">
           {/* Server Cards */}
           <div className="bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700 hover:border-blue-500 transition-all duration-300">
-            <div className="flex items-center mb-3"><Icon name="Swords" size={28} className="text-blue-400 mr-3" /><h3 className="text-2xl font-bold text-blue-400">🏕️ VN_game</h3></div>
+            <div className="flex items-center mb-3"><h3 className="text-2xl font-bold text-blue-400">🏕️ VN_game</h3></div>
             <p className="text-gray-300 mb-2">Dành cho người chơi thích trải nghiệm ổn định, cày cuốc nhẹ nhàng.</p>
           </div>
           <div className="bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700 hover:border-red-500 transition-all duration-300">
-            <div className="flex items-center mb-3"><Icon name="Swords" size={28} className="text-red-400 mr-3" /><h3 className="text-2xl font-bold text-red-400">⚔️ VN_toichoi</h3></div>
+            <div className="flex items-center mb-3"><h3 className="text-2xl font-bold text-red-400">⚔️ VN_toichoi</h3></div>
             <p className="text-gray-300 mb-2">Dành cho game thủ yêu thích PvP, chiến đấu sinh tồn khốc liệt.</p>
           </div>
           <div className="bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700 hover:border-green-500 transition-all duration-300">
-            <div className="flex items-center mb-3"><Icon name="Swords" size={28} className="text-green-400 mr-3" /><h3 className="text-2xl font-bold text-green-500">💖 VN_YenBinh</h3></div>
+            <div className="flex items-center mb-3"><h3 className="text-2xl font-bold text-green-500">💖 VN_YenBinh</h3></div>
             <p className="text-gray-300 mb-2">Thế giới "Yên Bình" dành cho các chiến binh hệ cute!</p>
           </div>
           <div className="bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-700 hover:border-yellow-500 transition-all duration-300">
-            <div className="flex items-center mb-3"><Icon name="Swords" size={28} className="text-yellow-400 mr-3" /><h3 className="text-2xl font-bold text-yellow-400">⭐ Cổ Đông</h3></div>
+            <div className="flex items-center mb-3"><h3 className="text-2xl font-bold text-yellow-400">⭐ Cổ Đông</h3></div>
             <p className="mb-2 text-xl text-yellow-400">Admin: TQK (VN_game)</p>
             <p className="text-gray-400 text-sm">Kêu gọi nhà đầu tư xây dựng server!</p>
           </div>
