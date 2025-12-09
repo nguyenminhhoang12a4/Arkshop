@@ -602,7 +602,6 @@ export const EventPage = () => {
           {/* Cột 1 */}
           <div className="bg-gray-800 p-6 rounded-lg shadow-lg space-y-3 border border-gray-700">
             <h3 className="text-xl font-bold text-yellow-400 border-b border-gray-600 pb-2 mb-3">Mốc 1 Điểm</h3>
-            <p><span className="font-bold text-emerald-400">1đ</span> = 2k amber</p>
             <p><span className="font-bold text-emerald-400">1đ</span> = 1 cuốc + 1 rìu (full chỉ số)</p>
             <p><span className="font-bold text-emerald-400">1đ</span> = 3k Nguyên liệu (tự chọn)</p>
             <p><span className="font-bold text-emerald-400">1đ</span> = buff lv cho 1 con thú</p>
@@ -621,6 +620,7 @@ export const EventPage = () => {
             <p><span className="font-bold text-emerald-400">2đ</span> = x30 cái Vòng Vàng</p>
             <p><span className="font-bold text-emerald-400">2đ</span> = x30 Thuốc Phối Thú Ăn Thịt</p>
             <p><span className="font-bold text-emerald-400">2đ</span> = x40 Thuốc Phối Thú Ăn Cỏ</p>
+            <p><span className="font-bold text-emerald-400">2đ</span> = 3k amber</p>
             <div className="border-t border-gray-700 my-4"></div>
             <p><span className="font-bold text-emerald-400">3đ</span> = full giáp sắt max chỉ số</p>
           </div>
@@ -628,13 +628,12 @@ export const EventPage = () => {
           {/* Cột 3 */}
           <div className="bg-gray-800 p-6 rounded-lg shadow-lg space-y-3 border border-gray-700">
             <h3 className="text-xl font-bold text-yellow-400 border-b border-gray-600 pb-2 mb-3">Mốc 5-10 Điểm</h3>
-            <p><span className="font-bold text-emerald-400">5đ</span> = 1 bv tự chọn</p>
-            <p><span className="font-bold text-emerald-400">5đ</span> = 1 thú đột biến ramdon (lv 538 + 60lv)</p>
-            <p><span className="font-bold text-emerald-400">5đ</span> = 1 bv tự chọn ( tek, tele, súng tek,…)</p>
+            <p><span className="font-bold text-emerald-400">6đ</span> = 1 thú đột biến ramdon (lv 538 + 60lv)</p>
+            <p><span className="font-bold text-emerald-400">7đ</span> = 1 bv tự chọn ( tek, tele, súng tek,…)</p>
             <div className="border-t border-gray-700 my-4"></div>
-            <p><span className="font-bold text-emerald-400">6đ</span> = 1 thú đột biến tự chọn (lv 538 + 60lv)</p>
+            <p><span className="font-bold text-emerald-400">7đ</span> = 1 thú đột biến tự chọn (lv 538 + 60lv)</p>
             <div className="border-t border-gray-700 my-4"></div>
-            <p><span className="font-bold text-emerald-400">10đ</span> = 1 đảo bay</p>
+            <p><span className="font-bold text-emerald-400">13đ</span> = 1 đảo bay</p>
           </div>
         </div>
       </div>
