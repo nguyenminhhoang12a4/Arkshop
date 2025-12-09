@@ -62,7 +62,9 @@ import HinhTC43 from '../assets/HinhTC_43.png';
 import HinhTC44 from '../assets/HinhTC_44.png';
 import HinhTC45 from '../assets/HinhTC_45.png';
 
-// --- ĐÃ XÓA IMPORT VIDEO MP4 ---
+
+import VideoHD1 from '../assets/video/video1.mp4';
+
 
 const sliderImages = [
   HinhTC1, HinhTC2, HinhTC3, HinhTC4, HinhTC5, HinhTC6, HinhTC7, HinhTC8, HinhTC9,
@@ -77,7 +79,7 @@ const sliderImages = [
 // BẠN HÃY THAY LINK YOUTUBE CỦA BẠN VÀO ĐÂY NHÉ
 // Lưu ý: Dùng định dạng https://www.youtube.com/embed/ID_VIDEO
 const guideVideos = [
-  { id: 1, title: "Hướng Dẫn Đăng Ký Và Đăng Nhập", src: "https://www.youtube.com/embed/uAHpSSnO2D8" },
+  { id: 1, title: "Hướng Dẫn Đăng Ký Và Đăng Nhập", src: VideoHD1 },
   { id: 2, title: "Cách Chơi Xổ Số", src: "https://www.youtube.com/embed/o7D--TFtii0" },
   { id: 3, title: "Cách Nạp Chuyển Đổi Thẻ", src: "https://www.youtube.com/embed/q8ZcNUVQwio" },
   { id: 4, title: "Cách Đăng Tin ", src: "https://www.youtube.com/embed/7Au9WUgfrWw" },
