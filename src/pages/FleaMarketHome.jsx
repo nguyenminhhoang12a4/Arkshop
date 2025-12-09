@@ -429,40 +429,78 @@ export default function FleaMarketHome() {
                 Vui lòng đọc kỹ các quy định trước khi đăng bài nhé.
               </p>
               
-              {/* Nội dung quy định giữ nguyên */}
-              <div className="mb-6">
+              {/* Thông Tin Khi Đăng Bài */}
+            <div className="mb-6">
                 <h3 className="flex items-center text-lg font-bold text-blue-600 mb-3">
                   <InformationCircleIcon className="h-6 w-6 mr-2" />
-                  Thông Tin Khi Đăng Bài
+                  Thông Tin Đăng Bài
                 </h3>
                 <ul className="list-disc list-inside space-y-2 text-gray-700">
-                  <li>Để biết giá đăng hợp lý, bạn có thể **tham khảo ở /shop**.</li>
-                  <li>Có món nào bán món đó.</li>
-                  <li>Nếu cần trung gian thì liên hệ **ad BennShop**.</li>
+                  <li>
+                    Để biết giá đăng hợp lý bạn có thể tham khảo ở{" "}
+                    <span className="font-bold text-blue-600 hover:underline cursor-pointer">
+                      shop của trang chủ
+                    </span>.
+                  </li>
+                  <li>
+                    Nếu cần định giá món hàng bạn có thể gửi đến{" "}
+                    <span className="font-bold text-indigo-600">BennShop</span> hoặc{" "}
+                    <span className="font-bold text-pink-500">Chị NaNa</span>{" "}
+                    <span className="font-bold text-green-600">hoàn toàn free</span>.
+                  </li>
                 </ul>
-              </div>
+            </div>
 
-              <div className="mb-6">
+            {/* Giới Hạn Đăng Bài */}
+            <div className="mb-6">
                 <h3 className="flex items-center text-lg font-bold text-indigo-600 mb-3">
                   <span className="text-xl mr-2">📊</span>
                   Giới Hạn Đăng Bài
                 </h3>
                 <ul className="list-disc list-inside space-y-2 text-gray-700">
-                  <li>Mỗi người sẽ được đăng bán **{defaultLimit} mặt hàng** (Mặc định).</li>
-                  <li>Có thể liên hệ Admin để **nâng cấp giới hạn**.</li>
+                  <li>
+                    Mỗi người sẽ được đăng bán{" "}
+                    <span className="font-bold text-gray-900">1 mặt hàng</span>.
+                  </li>
+                  <li className="pl-4 border-l-2 border-indigo-100 ml-1">
+                    <span className="font-semibold text-gray-600">Rank Normal:</span>{" "}
+                    <span className="font-bold text-gray-800">2 mặt hàng</span>
+                  </li>
+                  <li className="pl-4 border-l-2 border-indigo-200 ml-1">
+                    <span className="font-semibold text-slate-500">Rank Silver:</span>{" "}
+                    <span className="font-bold text-slate-700">3 mặt hàng</span>
+                  </li>
+                  <li className="pl-4 border-l-2 border-yellow-200 ml-1">
+                    <span className="font-semibold text-yellow-600">Rank Gold:</span>{" "}
+                    <span className="font-bold text-yellow-700">4 mặt hàng</span>
+                  </li>
+                  <li className="pt-1">
+                    Bạn có thể liên hệ Admin để{" "}
+                    <span className="font-bold text-indigo-600">nâng cấp slot</span>.
+                  </li>
                 </ul>
-              </div>
+            </div>
 
-              <div className="mb-6">
+            {/* Quy Định Khi Đăng Bài */}
+            <div className="mb-6">
                 <h3 className="flex items-center text-lg font-bold text-yellow-600 mb-3">
                   <ExclamationTriangleIcon className="h-6 w-6 mr-2" />
                   Quy Định Khi Đăng Bài
                 </h3>
                 <ul className="list-disc list-inside space-y-2 text-gray-700">
-                  <li>**Không đăng** các mặt hàng hack/cheat.</li>
-                  <li>Vi phạm sẽ bị **khóa tài khoản vĩnh viễn**.</li>
+                  <li>
+                    <span className="font-bold text-red-500">Không đăng</span> các mặt
+                    hàng liên quan đến{" "}
+                    <span className="font-bold text-red-600">hack/cheat</span>.
+                  </li>
+                  <li>
+                    Vi phạm sẽ bị{" "}
+                    <span className="font-bold text-red-700 uppercase border-b border-red-700">
+                      khóa tài khoản vĩnh viễn
+                    </span>.
+                  </li>
                 </ul>
-              </div>
+            </div>
 
               <button
                 onClick={() => setShowRulesModal(false)}

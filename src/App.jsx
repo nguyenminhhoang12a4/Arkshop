@@ -20,6 +20,7 @@ import Register from './pages/Register';
 import CreateListing from './pages/CreateListing';
 import CardPage from './pages/Card';
 
+
 // Component Layout chung (Navbar + Nền)
 const AppLayout = () => (
   <div className="min-h-screen bg-gray-100 p-4 sm:p-8 font-sans">
@@ -111,6 +112,7 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           {/* Đã xóa CardPage ở đây */}
+     
 
         </Routes>
         

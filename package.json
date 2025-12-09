@@ -12,10 +12,12 @@
   "dependencies": {
     "@heroicons/react": "^2.2.0",
     "@supabase/supabase-js": "^2.80.0",
+    "apexcharts": "^5.3.6",
     "canvas-confetti": "^1.9.4",
     "date-fns": "^4.1.0",
     "lucide-react": "^0.554.0",
     "react": "^19.1.1",
+    "react-apexcharts": "^1.8.0",
     "react-dom": "^19.1.1",
     "react-modal": "^3.16.3",
     "react-model": "^4.3.1",
@@ -23,6 +25,7 @@
     "react-router-dom": "^7.9.5",
     "react-slick": "^0.31.0",
     "react-youtube": "^10.1.0",
+    "recharts": "^3.5.1",
     "slick-carousel": "^1.8.1"
   },
   "devDependencies": {
