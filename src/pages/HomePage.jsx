@@ -77,11 +77,11 @@ const sliderImages = [
 // BẠN HÃY THAY LINK YOUTUBE CỦA BẠN VÀO ĐÂY NHÉ
 // Lưu ý: Dùng định dạng https://www.youtube.com/embed/ID_VIDEO
 const guideVideos = [
-  { id: 1, title: "Hướng Dẫn Đăng Ký Và Đăng Nhập", src: "https://youtu.be/3c2Bhr6iMnY" },
-  { id: 2, title: "Cách Chơi Xổ Số", src: "https://youtube.com/shorts/o7D--TFtii0" },
-  { id: 3, title: "Cách Nạp Chuyển Đổi Thẻ", src: "https://youtu.be/q8ZcNUVQwio" },
-  { id: 4, title: "Cách Đăng Tin ", src: "https://youtu.be/7Au9WUgfrWw" },
-  { id: 5, title: "Mua Hàng", src: "https://youtu.be/U7pa4x6s75s" },
+  { id: 1, title: "Hướng Dẫn Đăng Ký Và Đăng Nhập", src: "https://www.youtube.com/embed/3c2Bhr6iMnY" },
+  { id: 2, title: "Cách Chơi Xổ Số", src: "https://www.youtube.com/embed/o7D--TFtii0" },
+  { id: 3, title: "Cách Nạp Chuyển Đổi Thẻ", src: "https://www.youtube.com/embed/q8ZcNUVQwio" },
+  { id: 4, title: "Cách Đăng Tin ", src: "https://www.youtube.com/embed/7Au9WUgfrWw" },
+  { id: 5, title: "Mua Hàng", src: "https://www.youtube.com/embed/U7pa4x6s75s" },
 ];
 
 // --- COMPONENT VIDEO CARD (ĐÃ SỬA ĐỂ DÙNG YOUTUBE IFRAME) ---
