@@ -16,7 +16,7 @@ import Slider from "react-slick";
 import "slick-carousel/slick/slick.css"; 
 import "slick-carousel/slick/slick-theme.css";
 
-// --- IMPORT HÌNH ẢNH ---
+// --- IMPORT HÌNH ẢNH (Giữ nguyên) ---
 import HinhTC1 from '../assets/HinhTC_1.png';
 import HinhTC2 from '../assets/HinhTC_2.png';
 import HinhTC3 from '../assets/HinhTC_3.png';
@@ -84,16 +84,16 @@ const guideVideos = [
   { id: 5, title: "Mua Hàng", src: "https://www.youtube.com/embed/U7pa4x6s75s", type: 'youtube' },
 ];
 
-// --- COMPONENT MŨI TÊN CUSTOM (ĐÃ CHỈNH SỬA CHO MOBILE NHỎ) ---
+// --- COMPONENT MŨI TÊN CUSTOM (ĐÃ CHỈNH SỬA VỊ TRÍ CHO MOBILE) ---
 const NextArrow = (props) => {
   const { onClick } = props;
   return (
     <div 
-      // Đặt right-1 để nằm gọn trong padding, tránh bị che khuất trên màn hình nhỏ
-      className="absolute top-1/2 right-1 sm:-right-4 z-20 -translate-y-1/2 cursor-pointer bg-gray-900/80 hover:bg-blue-600 text-white p-2 rounded-full shadow-lg border border-gray-600 transition-all backdrop-blur-sm"
+      // Đẩy nút sát lề phải (right-2) và tăng z-index để nổi lên trên video
+      className="absolute top-1/2 right-2 z-20 -translate-y-1/2 cursor-pointer bg-black/60 hover:bg-blue-600 text-white p-2 rounded-full shadow-lg border border-gray-500/50 backdrop-blur-sm transition-all"
       onClick={onClick}
     >
-      <ChevronRightIcon className="w-5 h-5 sm:w-6 sm:h-6" />
+      <ChevronRightIcon className="w-6 h-6 sm:w-6 sm:h-6" />
     </div>
   );
 };
@@ -102,11 +102,11 @@ const PrevArrow = (props) => {
   const { onClick } = props;
   return (
     <div 
-      // Đặt left-1 để nằm gọn trong padding
-      className="absolute top-1/2 left-1 sm:-left-4 z-20 -translate-y-1/2 cursor-pointer bg-gray-900/80 hover:bg-blue-600 text-white p-2 rounded-full shadow-lg border border-gray-600 transition-all backdrop-blur-sm"
+      // Đẩy nút sát lề trái (left-2)
+      className="absolute top-1/2 left-2 z-20 -translate-y-1/2 cursor-pointer bg-black/60 hover:bg-blue-600 text-white p-2 rounded-full shadow-lg border border-gray-500/50 backdrop-blur-sm transition-all"
       onClick={onClick}
     >
-      <ChevronLeftIcon className="w-5 h-5 sm:w-6 sm:h-6" />
+      <ChevronLeftIcon className="w-6 h-6 sm:w-6 sm:h-6" />
     </div>
   );
 };
@@ -138,7 +138,7 @@ export const HomePage = () => {
   const [helpersList, setHelpersList] = useState([]);
   const [historyList, setHistoryList] = useState([]);
 
-  // --- SLIDER SETTINGS CHO IMAGE (Cũ) ---
+  // --- SLIDER SETTINGS CHO IMAGE (Giữ nguyên) ---
   const imageSliderSettings = {
     className: "center-slider",
     centerMode: true,
@@ -154,10 +154,10 @@ export const HomePage = () => {
     responsive: [{ breakpoint: 768, settings: { slidesToShow: 1, slidesToScroll: 1, centerPadding: "20px", centerMode: true } }]
   };
 
-  // --- MỚI: SLIDER SETTINGS CHO VIDEO (TỐI ƯU MOBILE) ---
+  // --- SLIDER SETTINGS CHO VIDEO (ĐÃ NÂNG CẤP STYLE MOBILE) ---
   const videoSliderSettings = {
     dots: true,
-    infinite: false, 
+    infinite: true, // Bật infinite để lướt liên tục giống khoảnh khắc server
     speed: 500,
     slidesToShow: 3, // PC: 3 video
     slidesToScroll: 1,
@@ -172,10 +172,12 @@ export const HomePage = () => {
       {
         breakpoint: 768, 
         settings: { 
-            slidesToShow: 1, // Mobile: 1 video duy nhất
+            className: "center-slider", // Thêm class để dễ style nếu cần
+            slidesToShow: 1, 
             slidesToScroll: 1,
-            arrows: true, // Bật mũi tên để dễ bấm
-            centerMode: false, // Tắt centerMode để hiển thị trọn vẹn 1 slide
+            centerMode: true, // 🔥 QUAN TRỌNG: Giúp video ở giữa to hơn
+            centerPadding: "40px", // 🔥 Lộ ra 1 chút của 2 video bên cạnh (giống khoảnh khắc server)
+            arrows: true, 
         } 
       }
     ]
@@ -211,79 +213,19 @@ export const HomePage = () => {
     };
   }, [profile]);
 
-  // --- LOGIC XỬ LÝ MODAL VIDEO ---
-  const openVideoModal = (index) => {
-    setSelectedVideoIndex(index);
-  };
+  // --- LOGIC MODAL & DATA FUNCTIONS (Giữ nguyên) ---
+  const openVideoModal = (index) => { setSelectedVideoIndex(index); };
+  const closeVideoModal = () => { setSelectedVideoIndex(null); };
+  const nextVideo = (e) => { e.stopPropagation(); if (selectedVideoIndex !== null) { setSelectedVideoIndex((selectedVideoIndex + 1) % guideVideos.length); } };
+  const prevVideo = (e) => { e.stopPropagation(); if (selectedVideoIndex !== null) { setSelectedVideoIndex((selectedVideoIndex - 1 + guideVideos.length) % guideVideos.length); } };
 
-  const closeVideoModal = () => {
-    setSelectedVideoIndex(null);
-  };
+  const fetchHelpers = async () => { const { data, error } = await supabase.from('profiles').select('character_name, server, event_points').eq('rank', 'helper').order('event_points', { ascending: false }); if (!error) setHelpersList(data || []); };
+  const fetchRequests = async () => { const { data, error } = await supabase.from('help_requests').select(`*, profiles:user_id (character_name, server, zalo_contact, rank), helper:helper_id (character_name, id)`).order('created_at', { ascending: false }).neq('status', 'cancelled').neq('status', 'completed').limit(20); if (!error) setRequests(data); };
+  const fetchHistory = async () => { const { data, error } = await supabase.from('help_requests').select(`*, profiles:user_id (character_name), helper:helper_id (character_name)`).in('status', ['completed', 'cancelled']).order('created_at', { ascending: false }).limit(30); if (!error) setHistoryList(data || []); };
 
-  const nextVideo = (e) => {
-    e.stopPropagation();
-    if (selectedVideoIndex !== null && selectedVideoIndex < guideVideos.length - 1) {
-      setSelectedVideoIndex(selectedVideoIndex + 1);
-    } else {
-        setSelectedVideoIndex(0); 
-    }
-  };
-
-  const prevVideo = (e) => {
-    e.stopPropagation();
-    if (selectedVideoIndex !== null && selectedVideoIndex > 0) {
-      setSelectedVideoIndex(selectedVideoIndex - 1);
-    } else {
-        setSelectedVideoIndex(guideVideos.length - 1);
-    }
-  };
-
-  // --- FETCH DATA FUNCTIONS ---
-  const fetchHelpers = async () => {
-    const { data, error } = await supabase.from('profiles').select('character_name, server, event_points').eq('rank', 'helper').order('event_points', { ascending: false });
-    if (!error) setHelpersList(data || []);
-  };
-
-  const fetchRequests = async () => {
-    const { data, error } = await supabase
-      .from('help_requests')
-      .select(`*, profiles:user_id (character_name, server, zalo_contact, rank), helper:helper_id (character_name, id)`)
-      .order('created_at', { ascending: false })
-      .neq('status', 'cancelled')
-      .neq('status', 'completed') 
-      .limit(20);
-    if (!error) setRequests(data);
-  };
-
-  const fetchHistory = async () => {
-    const { data, error } = await supabase
-      .from('help_requests')
-      .select(`*, profiles:user_id (character_name), helper:helper_id (character_name)`)
-      .in('status', ['completed', 'cancelled'])
-      .order('created_at', { ascending: false })
-      .limit(30); 
-    if (!error) setHistoryList(data || []);
-  };
-
-  // --- ADMIN & HELPER FUNCTIONS ---
-  const handleAdminSearch = async (pageNumber = 1) => { 
-    setAdminLoading(true); setPage(pageNumber);
-    try {
-        const from = (pageNumber - 1) * ITEMS_PER_PAGE; const to = from + ITEMS_PER_PAGE - 1;
-        let query = supabase.from('profiles').select('*', { count: 'exact' }).order('rank', { ascending: true }).order('created_at', { ascending: false }).range(from, to);
-        if (adminSearchTerm.trim()) query = query.or(`character_name.ilike.%${adminSearchTerm}%,zalo_contact.ilike.%${adminSearchTerm}%,email.ilike.%${adminSearchTerm}%`);
-        const { data, count, error } = await query;
-        if (error) throw error;
-        setAdminUsers(data || []); setHasMore(count > to + 1);
-    } catch (error) { alert("Lỗi tìm kiếm: " + error.message); } finally { setAdminLoading(false); }
-  };
-  const handleUpdateRank = async (userId) => { 
-      if (!newRank) return;
-      try { const { error } = await supabase.rpc('admin_update_user_rank', { p_user_id: userId, p_new_rank: newRank }); if (error) throw error; alert("✅ Cập nhật Rank thành công!"); setEditingUser(null); handleAdminSearch(page); fetchHelpers(); } catch (error) { alert("Lỗi: " + error.message); }
-  };
-  const handleSubmitRequest = async (e) => { 
-    e.preventDefault(); if (!user) return alert("Vui lòng đăng nhập!"); const bounty = parseInt(formBounty); const currentPoints = profile?.event_points || 0; if (bounty <= 0) return alert("Số điểm phải lớn hơn 0"); if (bounty > currentPoints) return alert(`Bạn không đủ điểm!`); setActionLoading('submit'); try { const { data, error } = await supabase.rpc('create_help_request', { p_content: formContent, p_time_info: formTime, p_bounty: bounty }); if (error) throw error; setIsModalOpen(false); setFormContent(''); setFormTime(''); setFormBounty(''); alert(data.message); await fetchRequests(); } catch (err) { alert("Lỗi: " + err.message); } finally { setActionLoading(null); }
-  };
+  const handleAdminSearch = async (pageNumber = 1) => { setAdminLoading(true); setPage(pageNumber); try { const from = (pageNumber - 1) * ITEMS_PER_PAGE; const to = from + ITEMS_PER_PAGE - 1; let query = supabase.from('profiles').select('*', { count: 'exact' }).order('rank', { ascending: true }).order('created_at', { ascending: false }).range(from, to); if (adminSearchTerm.trim()) query = query.or(`character_name.ilike.%${adminSearchTerm}%,zalo_contact.ilike.%${adminSearchTerm}%,email.ilike.%${adminSearchTerm}%`); const { data, count, error } = await query; if (error) throw error; setAdminUsers(data || []); setHasMore(count > to + 1); } catch (error) { alert("Lỗi tìm kiếm: " + error.message); } finally { setAdminLoading(false); } };
+  const handleUpdateRank = async (userId) => { if (!newRank) return; try { const { error } = await supabase.rpc('admin_update_user_rank', { p_user_id: userId, p_new_rank: newRank }); if (error) throw error; alert("✅ Cập nhật Rank thành công!"); setEditingUser(null); handleAdminSearch(page); fetchHelpers(); } catch (error) { alert("Lỗi: " + error.message); } };
+  const handleSubmitRequest = async (e) => { e.preventDefault(); if (!user) return alert("Vui lòng đăng nhập!"); const bounty = parseInt(formBounty); const currentPoints = profile?.event_points || 0; if (bounty <= 0) return alert("Số điểm phải lớn hơn 0"); if (bounty > currentPoints) return alert(`Bạn không đủ điểm!`); setActionLoading('submit'); try { const { data, error } = await supabase.rpc('create_help_request', { p_content: formContent, p_time_info: formTime, p_bounty: bounty }); if (error) throw error; setIsModalOpen(false); setFormContent(''); setFormTime(''); setFormBounty(''); alert(data.message); await fetchRequests(); } catch (err) { alert("Lỗi: " + err.message); } finally { setActionLoading(null); } };
   const handleAccept = async (reqId) => { if (actionLoading === reqId) return; if (!confirm("Bạn chắc chắn muốn nhận hỗ trợ?")) return; setActionLoading(reqId); try { const { error } = await supabase.rpc('accept_help_request', { p_request_id: reqId }); if (error) throw error; await fetchRequests(); alert("Đã nhận kèo thành công!"); } catch (err) { alert("Lỗi: " + err.message); } finally { setActionLoading(null); } };
   const handleComplete = async (reqId) => { if (actionLoading === reqId) return; if (!confirm("Xác nhận hoàn thành?")) return; setActionLoading(reqId); try { const { error } = await supabase.rpc('complete_help_request', { p_request_id: reqId }); if (error) throw error; confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } }); await fetchRequests(); await fetchHistory(); alert("Đã hoàn thành!"); } catch (err) { alert("Lỗi: " + err.message); } finally { setActionLoading(null); } };
   const handleCancel = async (reqId) => { if (actionLoading === reqId) return; if (!confirm("Hủy yêu cầu?")) return; setActionLoading(reqId); try { const { error } = await supabase.rpc('cancel_help_request', { p_request_id: reqId }); if (error) throw error; await fetchRequests(); await fetchHistory(); alert("Đã hủy!"); } catch (err) { alert("Lỗi: " + err.message); } finally { setActionLoading(null); } };
@@ -293,7 +235,7 @@ export const HomePage = () => {
   return (
     <div className="bg-gray-900 text-white p-4 sm:p-8 rounded-lg shadow-2xl animate-fade-in font-sans">
       
-      {/* --- Hero & Server Section (Giữ nguyên) --- */}
+      {/* --- Hero & Server Section --- */}
       <div className="text-center p-8 rounded-lg bg-black bg-opacity-20 mb-12 relative overflow-hidden">
         <div className="absolute inset-0 bg-emerald-900 opacity-30 blur-3xl z-0"></div>
         <div className="relative z-10">
@@ -316,15 +258,15 @@ export const HomePage = () => {
         </div>
       </div>
 
-      {/* =========== 🎥 HƯỚNG DẪN TÂN THỦ (ĐÃ CHỈNH SỬA) =========== */}
+      {/* =========== 🎥 HƯỚNG DẪN TÂN THỦ (ĐÃ CHỈNH SỬA TO BỰ & CENTER MODE) =========== */}
       <div className="mb-16">
          <h2 className="text-3xl font-bold text-center mb-8 flex items-center justify-center space-x-3 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">
             <VideoCameraIcon className="w-8 h-8 text-blue-400" />
             <span>Hướng Dẫn Tân Thủ</span>
          </h2>
          
-         {/* SLIDER WRAPPER - Tăng padding lên px-12 để chừa chỗ cho mũi tên trên mobile */}
-         <div className="video-slider-wrapper px-10 sm:px-8 relative">
+         {/* SLIDER WRAPPER - Bỏ padding ngang để slider tràn viền trên mobile */}
+         <div className="video-slider-wrapper mb-8">
              <Slider {...videoSliderSettings}>
                 {guideVideos.map((video, index) => (
                     <div key={video.id} className="px-2 pb-4"> 
@@ -349,6 +291,8 @@ export const HomePage = () => {
                                     </div>
                                 </div>
                             </div>
+                            
+                            {/* Nội dung mô tả (Title) */}
                             <div className="p-3 bg-gray-800">
                                 <h3 className="text-sm font-bold text-white line-clamp-2 min-h-[40px]">
                                     <span className="bg-blue-600 text-[10px] px-1.5 py-0.5 rounded text-white mr-2 align-middle">HD</span>
@@ -362,60 +306,24 @@ export const HomePage = () => {
          </div>
       </div>
 
-      {/* =========== 📺 MODAL PHÁT VIDEO FULLSCREEN =========== */}
+      {/* =========== 📺 MODAL PHÁT VIDEO FULLSCREEN (Giữ nguyên) =========== */}
       {selectedVideoIndex !== null && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-fade-in" onClick={closeVideoModal}>
-              <button 
-                onClick={closeVideoModal}
-                className="absolute top-4 right-4 z-[60] text-white/70 hover:text-white bg-black/50 hover:bg-red-600 p-2 rounded-full transition-all"
-              >
-                  <XMarkIcon className="w-8 h-8" />
-              </button>
-
-              <button 
-                  onClick={prevVideo}
-                  className="absolute left-2 sm:left-8 z-[60] text-white/50 hover:text-white hover:bg-white/10 p-2 rounded-full transition-all"
-              >
-                  <ChevronLeftIcon className="w-10 h-10 sm:w-16 sm:h-16" />
-              </button>
-
-              <div 
-                className="relative w-full max-w-[400px] sm:max-w-[450px] md:max-w-[500px] h-[80vh] bg-black rounded-lg overflow-hidden shadow-2xl border border-gray-800"
-                onClick={(e) => e.stopPropagation()} 
-              >
+              <button onClick={closeVideoModal} className="absolute top-4 right-4 z-[60] text-white/70 hover:text-white bg-black/50 hover:bg-red-600 p-2 rounded-full transition-all"><XMarkIcon className="w-8 h-8" /></button>
+              <button onClick={prevVideo} className="absolute left-2 sm:left-8 z-[60] text-white/50 hover:text-white hover:bg-white/10 p-2 rounded-full transition-all"><ChevronLeftIcon className="w-10 h-10 sm:w-16 sm:h-16" /></button>
+              <div className="relative w-full max-w-[400px] sm:max-w-[450px] md:max-w-[500px] h-[80vh] bg-black rounded-lg overflow-hidden shadow-2xl border border-gray-800" onClick={(e) => e.stopPropagation()}>
                   {guideVideos[selectedVideoIndex].type === 'local' ? (
-                      <video 
-                          className="w-full h-full object-contain" 
-                          src={guideVideos[selectedVideoIndex].src} 
-                          controls 
-                          autoPlay 
-                      />
+                      <video className="w-full h-full object-contain" src={guideVideos[selectedVideoIndex].src} controls autoPlay />
                   ) : (
-                      <iframe 
-                          className="w-full h-full"
-                          src={`${guideVideos[selectedVideoIndex].src}?autoplay=1&rel=0`}
-                          title="YouTube video player"
-                          frameBorder="0"
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                          allowFullScreen
-                      ></iframe>
+                      <iframe className="w-full h-full" src={`${guideVideos[selectedVideoIndex].src}?autoplay=1&rel=0`} title="YouTube video player" frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen></iframe>
                   )}
-                  <div className="absolute bottom-0 left-0 w-full bg-gradient-to-t from-black via-black/70 to-transparent p-4 pt-10 text-center">
-                      <h3 className="text-white font-bold text-lg">{guideVideos[selectedVideoIndex].title}</h3>
-                      <p className="text-gray-400 text-sm">Video {selectedVideoIndex + 1} / {guideVideos.length}</p>
-                  </div>
+                  <div className="absolute bottom-0 left-0 w-full bg-gradient-to-t from-black via-black/70 to-transparent p-4 pt-10 text-center"><h3 className="text-white font-bold text-lg">{guideVideos[selectedVideoIndex].title}</h3><p className="text-gray-400 text-sm">Video {selectedVideoIndex + 1} / {guideVideos.length}</p></div>
               </div>
-
-              <button 
-                  onClick={nextVideo}
-                  className="absolute right-2 sm:right-8 z-[60] text-white/50 hover:text-white hover:bg-white/10 p-2 rounded-full transition-all"
-              >
-                  <ChevronRightIcon className="w-10 h-10 sm:w-16 sm:h-16" />
-              </button>
+              <button onClick={nextVideo} className="absolute right-2 sm:right-8 z-[60] text-white/50 hover:text-white hover:bg-white/10 p-2 rounded-full transition-all"><ChevronRightIcon className="w-10 h-10 sm:w-16 sm:h-16" /></button>
           </div>
       )}
 
-      {/* 👑 ADMIN PANEL (Giữ nguyên) */}
+      {/* 👑 ADMIN PANEL & CÁC PHẦN KHÁC (Giữ nguyên) */}
       {profile?.role === 'admin' && (
         <div className="mb-16 border border-indigo-500 rounded-xl bg-gray-900 overflow-hidden shadow-xl">
           <div className="bg-indigo-600 p-4 flex items-center gap-3 text-white font-bold text-xl"><UserGroupIcon className="w-7 h-7" /> <span>Admin: Quản Lý Người Dùng & Rank</span></div>
@@ -432,7 +340,7 @@ export const HomePage = () => {
         </div>
       )}
 
-      {/* =========== 🔥 TRUNG TÂM HỖ TRỢ 🔥 =========== */}
+      {/* =========== 🔥 TRUNG TÂM HỖ TRỢ 🔥 (Giữ nguyên) =========== */}
       <div className="mb-16 relative group">
         <div className="absolute -inset-0.5 bg-gradient-to-r from-yellow-600 via-orange-500 to-yellow-600 rounded-2xl blur opacity-40 group-hover:opacity-60 transition duration-1000 group-hover:duration-200 animate-pulse"></div>
         <div className="relative bg-gray-900 p-4 sm:p-8 rounded-2xl border border-yellow-500/20 shadow-2xl overflow-hidden">
