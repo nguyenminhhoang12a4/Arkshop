@@ -628,7 +628,7 @@ export const EventPage = () => {
           {/* Cột 3 */}
           <div className="bg-gray-800 p-6 rounded-lg shadow-lg space-y-3 border border-gray-700">
             <h3 className="text-xl font-bold text-yellow-400 border-b border-gray-600 pb-2 mb-3">Mốc 5-15 Điểm</h3>
-            <p><span className="font-bold text-emerald-400">5đ</span> = giam cầm người chơi khác trong pvp 1 ngày</p>
+            <p><span className="font-bold text-emerald-400">5đ</span> = giam cầm người chơi khác KHÔNG ĐƯỢC THAM GIA pvp 1 ngày</p>
             <p><span className="font-bold text-emerald-400">6đ</span> = 1 thú đột biến ramdon (lv 538 + 60lv)</p>
             <p><span className="font-bold text-emerald-400">7đ</span> = 1 bv tự chọn ( tek, tele, súng tek,…)</p>
             <div className="border-t border-gray-700 my-4"></div>
