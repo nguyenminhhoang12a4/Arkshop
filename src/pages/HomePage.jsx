@@ -7,7 +7,7 @@ import {
   UserGroupIcon, BriefcaseIcon, PlusCircleIcon, StarIcon, 
   SparklesIcon, ClockIcon, ClipboardDocumentListIcon, ArrowPathIcon,
   VideoCameraIcon, PlayIcon, 
-  ChevronLeftIcon, ChevronRightIcon // <--- MỚI: Icon điều hướng video
+  ChevronLeftIcon, ChevronRightIcon 
 } from '@heroicons/react/24/solid';
 import confetti from 'canvas-confetti'; 
 
@@ -19,7 +19,7 @@ import "slick-carousel/slick/slick-theme.css";
 // --- IMPORT HÌNH ẢNH ---
 import HinhTC1 from '../assets/HinhTC_1.png';
 import HinhTC2 from '../assets/HinhTC_2.png';
-// ... (Giữ nguyên các import hình ảnh của bạn từ HinhTC3 đến HinhTC45) ...
+// ... Các hình ảnh khác giữ nguyên ...
 import HinhTC3 from '../assets/HinhTC_3.png';
 import HinhTC4 from '../assets/HinhTC_4.png';
 import HinhTC5 from '../assets/HinhTC_5.png';
@@ -64,7 +64,7 @@ import HinhTC43 from '../assets/HinhTC_43.png';
 import HinhTC44 from '../assets/HinhTC_44.png';
 import HinhTC45 from '../assets/HinhTC_45.png';
 
-// Import video local của bạn
+// Import video local
 import VideoHD1 from '../assets/video/video1.mp4';
 
 const sliderImages = [
@@ -76,9 +76,9 @@ const sliderImages = [
   HinhTC42, HinhTC43, HinhTC44, HinhTC45
 ];
 
-// --- DANH SÁCH VIDEO HƯỚNG DẪN (HỖN HỢP: LOCAL & YOUTUBE) ---
+// --- DANH SÁCH VIDEO HƯỚNG DẪN ---
 const guideVideos = [
-  { id: 1, title: "Hướng Dẫn Đăng Ký Và Đăng Nhập", src: VideoHD1, type: 'local' }, // Video upload
+  { id: 1, title: "Hướng Dẫn Đăng Ký Và Đăng Nhập", src: VideoHD1, type: 'local' }, 
   { id: 2, title: "Cách Chơi Xổ Số", src: "https://www.youtube.com/embed/o7D--TFtii0", type: 'youtube' },
   { id: 3, title: "Cách Nạp Chuyển Đổi Thẻ", src: "https://www.youtube.com/embed/q8ZcNUVQwio", type: 'youtube' },
   { id: 4, title: "Cách Đăng Tin ", src: "https://www.youtube.com/embed/7Au9WUgfrWw", type: 'youtube' },
@@ -93,7 +93,7 @@ export const HomePage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   
   // State cho Modal Video
-  const [selectedVideoIndex, setSelectedVideoIndex] = useState(null); // Lưu index video đang xem
+  const [selectedVideoIndex, setSelectedVideoIndex] = useState(null);
 
   // State Form Request
   const [formContent, setFormContent] = useState('');
@@ -128,22 +128,27 @@ export const HomePage = () => {
     responsive: [{ breakpoint: 768, settings: { slidesToShow: 1, slidesToScroll: 1, centerPadding: "20px", centerMode: true } }]
   };
 
-  // --- MỚI: SLIDER SETTINGS CHO VIDEO ---
+  // --- MỚI: SLIDER SETTINGS CHO VIDEO (ĐÃ CHỈNH SỬA) ---
   const videoSliderSettings = {
     dots: true,
-    infinite: false, // Không lặp vô tận để người dùng biết điểm đầu cuối
+    infinite: false, 
     speed: 500,
-    slidesToShow: 3, // PC hiện 3 cái
+    slidesToShow: 3, // PC mặc định hiện 3
     slidesToScroll: 1,
-    initialSlide: 0,
+    swipe: true, // Cho phép vuốt cảm ứng
+    touchMove: true,
     responsive: [
       {
         breakpoint: 1024,
-        settings: { slidesToShow: 2, slidesToScroll: 1 } // Tablet hiện 2
+        settings: { slidesToShow: 2, slidesToScroll: 1 } // Tablet/Laptop nhỏ hiện 2
       },
       {
-        breakpoint: 600,
-        settings: { slidesToShow: 1, slidesToScroll: 1 } // Mobile hiện 1
+        breakpoint: 768, // <--- ĐÃ SỬA: Tăng mốc này lên 768px (Mobile & Tablet dọc)
+        settings: { 
+            slidesToShow: 1, // Chỉ hiển thị 1 video trên mobile
+            slidesToScroll: 1,
+            arrows: false // Tắt mũi tên điều hướng trên mobile cho gọn, chỉ vuốt
+        } 
       }
     ]
   };
@@ -192,7 +197,6 @@ export const HomePage = () => {
     if (selectedVideoIndex !== null && selectedVideoIndex < guideVideos.length - 1) {
       setSelectedVideoIndex(selectedVideoIndex + 1);
     } else {
-        // Nếu muốn lặp lại từ đầu thì dùng dòng dưới, không thì bỏ
         setSelectedVideoIndex(0); 
     }
   };
@@ -202,12 +206,11 @@ export const HomePage = () => {
     if (selectedVideoIndex !== null && selectedVideoIndex > 0) {
       setSelectedVideoIndex(selectedVideoIndex - 1);
     } else {
-        // Lặp về cuối
         setSelectedVideoIndex(guideVideos.length - 1);
     }
   };
 
-  // --- FETCH DATA FUNCTIONS (Giữ nguyên) ---
+  // --- FETCH DATA FUNCTIONS ---
   const fetchHelpers = async () => {
     const { data, error } = await supabase.from('profiles').select('character_name, server, event_points').eq('rank', 'helper').order('event_points', { ascending: false });
     if (!error) setHelpersList(data || []);
@@ -234,8 +237,8 @@ export const HomePage = () => {
     if (!error) setHistoryList(data || []);
   };
 
-  // --- ADMIN & HELPER FUNCTIONS (Giữ nguyên code xử lý logic) ---
-  const handleAdminSearch = async (pageNumber = 1) => { /* ... giữ nguyên ... */ 
+  // --- ADMIN & HELPER FUNCTIONS ---
+  const handleAdminSearch = async (pageNumber = 1) => { 
     setAdminLoading(true); setPage(pageNumber);
     try {
         const from = (pageNumber - 1) * ITEMS_PER_PAGE; const to = from + ITEMS_PER_PAGE - 1;
@@ -246,17 +249,17 @@ export const HomePage = () => {
         setAdminUsers(data || []); setHasMore(count > to + 1);
     } catch (error) { alert("Lỗi tìm kiếm: " + error.message); } finally { setAdminLoading(false); }
   };
-  const handleUpdateRank = async (userId) => { /* ... giữ nguyên ... */ 
+  const handleUpdateRank = async (userId) => { 
       if (!newRank) return;
       try { const { error } = await supabase.rpc('admin_update_user_rank', { p_user_id: userId, p_new_rank: newRank }); if (error) throw error; alert("✅ Cập nhật Rank thành công!"); setEditingUser(null); handleAdminSearch(page); fetchHelpers(); } catch (error) { alert("Lỗi: " + error.message); }
   };
-  const handleSubmitRequest = async (e) => { /* ... giữ nguyên ... */ 
+  const handleSubmitRequest = async (e) => { 
     e.preventDefault(); if (!user) return alert("Vui lòng đăng nhập!"); const bounty = parseInt(formBounty); const currentPoints = profile?.event_points || 0; if (bounty <= 0) return alert("Số điểm phải lớn hơn 0"); if (bounty > currentPoints) return alert(`Bạn không đủ điểm!`); setActionLoading('submit'); try { const { data, error } = await supabase.rpc('create_help_request', { p_content: formContent, p_time_info: formTime, p_bounty: bounty }); if (error) throw error; setIsModalOpen(false); setFormContent(''); setFormTime(''); setFormBounty(''); alert(data.message); await fetchRequests(); } catch (err) { alert("Lỗi: " + err.message); } finally { setActionLoading(null); }
   };
-  const handleAccept = async (reqId) => { /* ... giữ nguyên ... */ if (actionLoading === reqId) return; if (!confirm("Bạn chắc chắn muốn nhận hỗ trợ?")) return; setActionLoading(reqId); try { const { error } = await supabase.rpc('accept_help_request', { p_request_id: reqId }); if (error) throw error; await fetchRequests(); alert("Đã nhận kèo thành công!"); } catch (err) { alert("Lỗi: " + err.message); } finally { setActionLoading(null); } };
-  const handleComplete = async (reqId) => { /* ... giữ nguyên ... */ if (actionLoading === reqId) return; if (!confirm("Xác nhận hoàn thành?")) return; setActionLoading(reqId); try { const { error } = await supabase.rpc('complete_help_request', { p_request_id: reqId }); if (error) throw error; confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } }); await fetchRequests(); await fetchHistory(); alert("Đã hoàn thành!"); } catch (err) { alert("Lỗi: " + err.message); } finally { setActionLoading(null); } };
-  const handleCancel = async (reqId) => { /* ... giữ nguyên ... */ if (actionLoading === reqId) return; if (!confirm("Hủy yêu cầu?")) return; setActionLoading(reqId); try { const { error } = await supabase.rpc('cancel_help_request', { p_request_id: reqId }); if (error) throw error; await fetchRequests(); await fetchHistory(); alert("Đã hủy!"); } catch (err) { alert("Lỗi: " + err.message); } finally { setActionLoading(null); } };
-  const handleRevoke = async (reqId) => { /* ... giữ nguyên ... */ if (actionLoading === reqId) return; if (!confirm("Bạn muốn bỏ kèo này?")) return; setActionLoading(reqId); try { const { error } = await supabase.rpc('helper_revoke_request', { p_request_id: reqId }); if (error) throw error; await fetchRequests(); alert("Đã hủy nhận kèo!"); } catch (err) { alert("Lỗi: " + err.message); } finally { setActionLoading(null); } };
+  const handleAccept = async (reqId) => { if (actionLoading === reqId) return; if (!confirm("Bạn chắc chắn muốn nhận hỗ trợ?")) return; setActionLoading(reqId); try { const { error } = await supabase.rpc('accept_help_request', { p_request_id: reqId }); if (error) throw error; await fetchRequests(); alert("Đã nhận kèo thành công!"); } catch (err) { alert("Lỗi: " + err.message); } finally { setActionLoading(null); } };
+  const handleComplete = async (reqId) => { if (actionLoading === reqId) return; if (!confirm("Xác nhận hoàn thành?")) return; setActionLoading(reqId); try { const { error } = await supabase.rpc('complete_help_request', { p_request_id: reqId }); if (error) throw error; confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } }); await fetchRequests(); await fetchHistory(); alert("Đã hoàn thành!"); } catch (err) { alert("Lỗi: " + err.message); } finally { setActionLoading(null); } };
+  const handleCancel = async (reqId) => { if (actionLoading === reqId) return; if (!confirm("Hủy yêu cầu?")) return; setActionLoading(reqId); try { const { error } = await supabase.rpc('cancel_help_request', { p_request_id: reqId }); if (error) throw error; await fetchRequests(); await fetchHistory(); alert("Đã hủy!"); } catch (err) { alert("Lỗi: " + err.message); } finally { setActionLoading(null); } };
+  const handleRevoke = async (reqId) => { if (actionLoading === reqId) return; if (!confirm("Bạn muốn bỏ kèo này?")) return; setActionLoading(reqId); try { const { error } = await supabase.rpc('helper_revoke_request', { p_request_id: reqId }); if (error) throw error; await fetchRequests(); alert("Đã hủy nhận kèo!"); } catch (err) { alert("Lỗi: " + err.message); } finally { setActionLoading(null); } };
   const formatTime = (dateString) => { const date = new Date(dateString); return `${date.getHours()}:${date.getMinutes() < 10 ? '0' : ''}${date.getMinutes()} ${date.getDate()}/${date.getMonth() + 1}`; };
 
   return (
@@ -285,46 +288,39 @@ export const HomePage = () => {
         </div>
       </div>
 
-      {/* =========== 🎥 HƯỚNG DẪN TÂN THỦ (ĐÃ NÂNG CẤP SLIDER & MODAL) =========== */}
+      {/* =========== 🎥 HƯỚNG DẪN TÂN THỦ (ĐÃ CHỈNH MOBILE: 1 VIDEO) =========== */}
       <div className="mb-16">
          <h2 className="text-3xl font-bold text-center mb-8 flex items-center justify-center space-x-3 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">
             <VideoCameraIcon className="w-8 h-8 text-blue-400" />
             <span>Hướng Dẫn Tân Thủ</span>
          </h2>
          
-         {/* Dùng Slider thay vì Grid */}
+         {/* SLIDER */}
          <div className="video-slider-wrapper px-4">
              <Slider {...videoSliderSettings}>
                 {guideVideos.map((video, index) => (
-                    <div key={video.id} className="px-2 pb-4"> {/* Padding để tạo khoảng cách giữa các slide */}
+                    <div key={video.id} className="px-2 pb-4"> 
                         <div 
                             className="bg-gray-800 rounded-xl overflow-hidden shadow-lg border border-gray-700 group hover:border-blue-500 transition-all cursor-pointer h-full relative"
-                            onClick={() => openVideoModal(index)} // Nhấn vào để mở Modal
+                            onClick={() => openVideoModal(index)} 
                         >
-                            {/* THUMBNAIL VIDEO (Dạng tĩnh để click) */}
                             <div className="relative w-full bg-black overflow-hidden" style={{ aspectRatio: '360/780' }}>
-                                {/* Nếu là video local thì hiện thẻ video tĩnh làm thumbnail */}
                                 {video.type === 'local' ? (
                                     <video className="w-full h-full object-cover" src={video.src} muted />
                                 ) : (
-                                    // Nếu Youtube thì hiện hình thumb của youtube hoặc placeholder đen
                                     <img 
                                         className="w-full h-full object-cover opacity-80"
-                                        // Mẹo lấy hình thumb youtube chất lượng cao
                                         src={`https://img.youtube.com/vi/${video.src.split('/').pop()}/maxresdefault.jpg`} 
                                         alt={video.title}
-                                        onError={(e) => {e.target.style.display = 'none'}} // Ẩn nếu lỗi
+                                        onError={(e) => {e.target.style.display = 'none'}} 
                                     />
                                 )}
-                                
-                                {/* Overlay Nút Play */}
                                 <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/40 group-hover:bg-black/20 transition-all">
                                     <div className="w-14 h-14 bg-red-600 rounded-full flex items-center justify-center shadow-xl transform group-hover:scale-110 transition-transform">
                                         <PlayIcon className="w-8 h-8 text-white ml-1" />
                                     </div>
                                 </div>
                             </div>
-                            
                             <div className="p-3 bg-gray-800">
                                 <h3 className="text-sm font-bold text-white line-clamp-2 min-h-[40px]">
                                     <span className="bg-blue-600 text-[10px] px-1.5 py-0.5 rounded text-white mr-2 align-middle">HD</span>
@@ -341,7 +337,6 @@ export const HomePage = () => {
       {/* =========== 📺 MODAL PHÁT VIDEO FULLSCREEN =========== */}
       {selectedVideoIndex !== null && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-fade-in" onClick={closeVideoModal}>
-              {/* Nút Close */}
               <button 
                 onClick={closeVideoModal}
                 className="absolute top-4 right-4 z-[60] text-white/70 hover:text-white bg-black/50 hover:bg-red-600 p-2 rounded-full transition-all"
@@ -349,7 +344,6 @@ export const HomePage = () => {
                   <XMarkIcon className="w-8 h-8" />
               </button>
 
-              {/* Nút Prev (Chỉ hiện nếu không phải video đầu, hoặc muốn loop thì bỏ đk) */}
               <button 
                   onClick={prevVideo}
                   className="absolute left-2 sm:left-8 z-[60] text-white/50 hover:text-white hover:bg-white/10 p-2 rounded-full transition-all"
@@ -357,10 +351,9 @@ export const HomePage = () => {
                   <ChevronLeftIcon className="w-10 h-10 sm:w-16 sm:h-16" />
               </button>
 
-              {/* Container Video */}
               <div 
                 className="relative w-full max-w-[400px] sm:max-w-[450px] md:max-w-[500px] h-[80vh] bg-black rounded-lg overflow-hidden shadow-2xl border border-gray-800"
-                onClick={(e) => e.stopPropagation()} // Chặn click xuyên qua đóng modal
+                onClick={(e) => e.stopPropagation()} 
               >
                   {guideVideos[selectedVideoIndex].type === 'local' ? (
                       <video 
@@ -379,15 +372,12 @@ export const HomePage = () => {
                           allowFullScreen
                       ></iframe>
                   )}
-                  
-                  {/* Title trong modal */}
                   <div className="absolute bottom-0 left-0 w-full bg-gradient-to-t from-black via-black/70 to-transparent p-4 pt-10 text-center">
                       <h3 className="text-white font-bold text-lg">{guideVideos[selectedVideoIndex].title}</h3>
                       <p className="text-gray-400 text-sm">Video {selectedVideoIndex + 1} / {guideVideos.length}</p>
                   </div>
               </div>
 
-              {/* Nút Next */}
               <button 
                   onClick={nextVideo}
                   className="absolute right-2 sm:right-8 z-[60] text-white/50 hover:text-white hover:bg-white/10 p-2 rounded-full transition-all"
