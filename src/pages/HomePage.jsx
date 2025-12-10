@@ -19,7 +19,6 @@ import "slick-carousel/slick/slick-theme.css";
 // --- IMPORT HÌNH ẢNH ---
 import HinhTC1 from '../assets/HinhTC_1.png';
 import HinhTC2 from '../assets/HinhTC_2.png';
-// ... Các hình ảnh khác giữ nguyên ...
 import HinhTC3 from '../assets/HinhTC_3.png';
 import HinhTC4 from '../assets/HinhTC_4.png';
 import HinhTC5 from '../assets/HinhTC_5.png';
@@ -85,6 +84,33 @@ const guideVideos = [
   { id: 5, title: "Mua Hàng", src: "https://www.youtube.com/embed/U7pa4x6s75s", type: 'youtube' },
 ];
 
+// --- COMPONENT MŨI TÊN CUSTOM CHO VIDEO SLIDER ---
+// Nút Next (Phải)
+const NextArrow = (props) => {
+  const { onClick } = props;
+  return (
+    <div 
+      className="absolute top-1/2 -right-2 sm:-right-4 z-10 -translate-y-1/2 cursor-pointer bg-gray-800/80 hover:bg-blue-600 text-white p-2 rounded-full shadow-lg border border-gray-600 transition-all"
+      onClick={onClick}
+    >
+      <ChevronRightIcon className="w-5 h-5 sm:w-6 sm:h-6" />
+    </div>
+  );
+};
+
+// Nút Prev (Trái)
+const PrevArrow = (props) => {
+  const { onClick } = props;
+  return (
+    <div 
+      className="absolute top-1/2 -left-2 sm:-left-4 z-10 -translate-y-1/2 cursor-pointer bg-gray-800/80 hover:bg-blue-600 text-white p-2 rounded-full shadow-lg border border-gray-600 transition-all"
+      onClick={onClick}
+    >
+      <ChevronLeftIcon className="w-5 h-5 sm:w-6 sm:h-6" />
+    </div>
+  );
+};
+
 export const HomePage = () => {
   const { user, profile } = useAuth(); 
   const [requests, setRequests] = useState([]);
@@ -112,7 +138,7 @@ export const HomePage = () => {
   const [helpersList, setHelpersList] = useState([]);
   const [historyList, setHistoryList] = useState([]);
 
-  // --- SLIDER SETTINGS CHO IMAGE (Cũ) ---
+  // --- SLIDER SETTINGS CHO IMAGE (Cũ - Giữ nguyên) ---
   const imageSliderSettings = {
     className: "center-slider",
     centerMode: true,
@@ -128,26 +154,27 @@ export const HomePage = () => {
     responsive: [{ breakpoint: 768, settings: { slidesToShow: 1, slidesToScroll: 1, centerPadding: "20px", centerMode: true } }]
   };
 
-  // --- MỚI: SLIDER SETTINGS CHO VIDEO (ĐÃ CHỈNH SỬA) ---
+  // --- MỚI: SLIDER SETTINGS CHO VIDEO (ĐÃ CÓ MŨI TÊN ĐIỀU HƯỚNG) ---
   const videoSliderSettings = {
     dots: true,
     infinite: false, 
     speed: 500,
     slidesToShow: 3, // PC mặc định hiện 3
     slidesToScroll: 1,
-    swipe: true, // Cho phép vuốt cảm ứng
-    touchMove: true,
+    swipe: true,
+    nextArrow: <NextArrow />, // Sử dụng mũi tên custom
+    prevArrow: <PrevArrow />, // Sử dụng mũi tên custom
     responsive: [
       {
         breakpoint: 1024,
         settings: { slidesToShow: 2, slidesToScroll: 1 } // Tablet/Laptop nhỏ hiện 2
       },
       {
-        breakpoint: 768, // <--- ĐÃ SỬA: Tăng mốc này lên 768px (Mobile & Tablet dọc)
+        breakpoint: 768, 
         settings: { 
-            slidesToShow: 1, // Chỉ hiển thị 1 video trên mobile
+            slidesToShow: 1, // Mobile: Hiện 1 video
             slidesToScroll: 1,
-            arrows: false // Tắt mũi tên điều hướng trên mobile cho gọn, chỉ vuốt
+            arrows: true, // BẮT BUỘC BẬT MŨI TÊN TRÊN MOBILE
         } 
       }
     ]
@@ -288,15 +315,15 @@ export const HomePage = () => {
         </div>
       </div>
 
-      {/* =========== 🎥 HƯỚNG DẪN TÂN THỦ (ĐÃ CHỈNH MOBILE: 1 VIDEO) =========== */}
+      {/* =========== 🎥 HƯỚNG DẪN TÂN THỦ (ĐÃ CHỈNH MOBILE + MŨI TÊN) =========== */}
       <div className="mb-16">
          <h2 className="text-3xl font-bold text-center mb-8 flex items-center justify-center space-x-3 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">
             <VideoCameraIcon className="w-8 h-8 text-blue-400" />
             <span>Hướng Dẫn Tân Thủ</span>
          </h2>
          
-         {/* SLIDER */}
-         <div className="video-slider-wrapper px-4">
+         {/* SLIDER WRAPPER - Thêm px-8 để tạo khoảng trống cho mũi tên trên Mobile */}
+         <div className="video-slider-wrapper px-6 sm:px-8">
              <Slider {...videoSliderSettings}>
                 {guideVideos.map((video, index) => (
                     <div key={video.id} className="px-2 pb-4"> 
