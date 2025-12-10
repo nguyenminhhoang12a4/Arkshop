@@ -239,7 +239,7 @@ const productMasterList = {
     { name: "X1 Cặp Troodon", price: "40.000đ" },
     { name: "X1 Cặp Carbonemys", price: "40.000đ" },
     { name: "X1 Cặp Daeodon", price: "60.000đ" },
-    { name: "X1 Cặp Daeodon", price: "40.000đ" },
+    { name: "X1 Cặp Daeodon", price: "50.000đ" },
     { name: "X1 Diplodocus ", price: "50.000đ" },
     { name: "X1 Cặp Diplodocus", price: "50.000đ" },
     { name: "X1 Cặp Dodo", price: "40.000đ" },
