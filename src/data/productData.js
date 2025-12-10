@@ -199,7 +199,7 @@ const productMasterList = {
      { name: "X1 Skin Werewold Mask", price: "20.000đ" },
      { name: "X1 Skin Witch Hat", price: "20.000đ" },
      { name: "X1 Tek Gen ", price: "5.000đ" },
-     { name: "X1 Tek Kibble", price: "5.000đ" },
+     { name: "X1 Tek Kibble", price: "10.000đ" },
      { name: "X1 Tek Teleport", price: "5.000đ" },
      { name: "X1 Kibble Griffin", price: "5.000đ" },
      { name: "X1  Turret 7m", price: "2.000đ" },
