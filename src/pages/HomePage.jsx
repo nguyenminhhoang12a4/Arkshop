@@ -84,13 +84,13 @@ const guideVideos = [
   { id: 5, title: "Mua Hàng", src: "https://www.youtube.com/embed/U7pa4x6s75s", type: 'youtube' },
 ];
 
-// --- COMPONENT MŨI TÊN CUSTOM CHO VIDEO SLIDER ---
-// Nút Next (Phải)
+// --- COMPONENT MŨI TÊN CUSTOM (ĐÃ CHỈNH SỬA CHO MOBILE NHỎ) ---
 const NextArrow = (props) => {
   const { onClick } = props;
   return (
     <div 
-      className="absolute top-1/2 -right-2 sm:-right-4 z-10 -translate-y-1/2 cursor-pointer bg-gray-800/80 hover:bg-blue-600 text-white p-2 rounded-full shadow-lg border border-gray-600 transition-all"
+      // Đặt right-1 để nằm gọn trong padding, tránh bị che khuất trên màn hình nhỏ
+      className="absolute top-1/2 right-1 sm:-right-4 z-20 -translate-y-1/2 cursor-pointer bg-gray-900/80 hover:bg-blue-600 text-white p-2 rounded-full shadow-lg border border-gray-600 transition-all backdrop-blur-sm"
       onClick={onClick}
     >
       <ChevronRightIcon className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -98,12 +98,12 @@ const NextArrow = (props) => {
   );
 };
 
-// Nút Prev (Trái)
 const PrevArrow = (props) => {
   const { onClick } = props;
   return (
     <div 
-      className="absolute top-1/2 -left-2 sm:-left-4 z-10 -translate-y-1/2 cursor-pointer bg-gray-800/80 hover:bg-blue-600 text-white p-2 rounded-full shadow-lg border border-gray-600 transition-all"
+      // Đặt left-1 để nằm gọn trong padding
+      className="absolute top-1/2 left-1 sm:-left-4 z-20 -translate-y-1/2 cursor-pointer bg-gray-900/80 hover:bg-blue-600 text-white p-2 rounded-full shadow-lg border border-gray-600 transition-all backdrop-blur-sm"
       onClick={onClick}
     >
       <ChevronLeftIcon className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -138,7 +138,7 @@ export const HomePage = () => {
   const [helpersList, setHelpersList] = useState([]);
   const [historyList, setHistoryList] = useState([]);
 
-  // --- SLIDER SETTINGS CHO IMAGE (Cũ - Giữ nguyên) ---
+  // --- SLIDER SETTINGS CHO IMAGE (Cũ) ---
   const imageSliderSettings = {
     className: "center-slider",
     centerMode: true,
@@ -154,27 +154,28 @@ export const HomePage = () => {
     responsive: [{ breakpoint: 768, settings: { slidesToShow: 1, slidesToScroll: 1, centerPadding: "20px", centerMode: true } }]
   };
 
-  // --- MỚI: SLIDER SETTINGS CHO VIDEO (ĐÃ CÓ MŨI TÊN ĐIỀU HƯỚNG) ---
+  // --- MỚI: SLIDER SETTINGS CHO VIDEO (TỐI ƯU MOBILE) ---
   const videoSliderSettings = {
     dots: true,
     infinite: false, 
     speed: 500,
-    slidesToShow: 3, // PC mặc định hiện 3
+    slidesToShow: 3, // PC: 3 video
     slidesToScroll: 1,
     swipe: true,
-    nextArrow: <NextArrow />, // Sử dụng mũi tên custom
-    prevArrow: <PrevArrow />, // Sử dụng mũi tên custom
+    nextArrow: <NextArrow />, 
+    prevArrow: <PrevArrow />, 
     responsive: [
       {
         breakpoint: 1024,
-        settings: { slidesToShow: 2, slidesToScroll: 1 } // Tablet/Laptop nhỏ hiện 2
+        settings: { slidesToShow: 2, slidesToScroll: 1 } 
       },
       {
         breakpoint: 768, 
         settings: { 
-            slidesToShow: 1, // Mobile: Hiện 1 video
+            slidesToShow: 1, // Mobile: 1 video duy nhất
             slidesToScroll: 1,
-            arrows: true, // BẮT BUỘC BẬT MŨI TÊN TRÊN MOBILE
+            arrows: true, // Bật mũi tên để dễ bấm
+            centerMode: false, // Tắt centerMode để hiển thị trọn vẹn 1 slide
         } 
       }
     ]
@@ -315,15 +316,15 @@ export const HomePage = () => {
         </div>
       </div>
 
-      {/* =========== 🎥 HƯỚNG DẪN TÂN THỦ (ĐÃ CHỈNH MOBILE + MŨI TÊN) =========== */}
+      {/* =========== 🎥 HƯỚNG DẪN TÂN THỦ (ĐÃ CHỈNH SỬA) =========== */}
       <div className="mb-16">
          <h2 className="text-3xl font-bold text-center mb-8 flex items-center justify-center space-x-3 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">
             <VideoCameraIcon className="w-8 h-8 text-blue-400" />
             <span>Hướng Dẫn Tân Thủ</span>
          </h2>
          
-         {/* SLIDER WRAPPER - Thêm px-8 để tạo khoảng trống cho mũi tên trên Mobile */}
-         <div className="video-slider-wrapper px-6 sm:px-8">
+         {/* SLIDER WRAPPER - Tăng padding lên px-12 để chừa chỗ cho mũi tên trên mobile */}
+         <div className="video-slider-wrapper px-10 sm:px-8 relative">
              <Slider {...videoSliderSettings}>
                 {guideVideos.map((video, index) => (
                     <div key={video.id} className="px-2 pb-4"> 
