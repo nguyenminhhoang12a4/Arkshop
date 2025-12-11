@@ -269,7 +269,7 @@ const productMasterList = {
     { name: "X1 Quetzal ", price: "60.000đ" },
     { name: "X1 Cặp Quetzal", price: "60.000đ" },
     { name: "X1 Quetzal 500sp", price: "60.000đ" },
-    { name: "X1 Cặp Quetzal", price: "70.000đ" },
+    { name: "X1 Quetzal", price: "50.000đ" },
     { name: "X1 Cặp Raptor", price: "40.000đ" },
     { name: "X1 Cặp Rex", price: "50.000đ" },
     { name: "X1 Rex ", price: "40.000đ" },
